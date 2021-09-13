@@ -1,0 +1,260 @@
+﻿using DynamicBoard.Assets;
+using DynamicBoard.Helpers;
+using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Logging;
+using System.Drawing;
+using System.Drawing.Drawing2D;
+using System.Drawing.Imaging;
+using static DynamicBoard.Helpers.FenConversion;
+
+namespace DynamicBoard
+{
+    public sealed class ShadowBoardRenderer : BoardRendererBase, IBoardRenderer
+    {
+        private static readonly Dictionary<char, Bitmap> Pieces = new()
+        {
+            { 'r', ShadowBoardResource.BlackRook },
+            { 'b', ShadowBoardResource.BlackBishop },
+            { 'n', ShadowBoardResource.BlackKnight },
+            { 'k', ShadowBoardResource.BlackKing },
+            { 'q', ShadowBoardResource.BlackQueen },
+            { 'p', ShadowBoardResource.BlackPawn },
+            { 'R', ShadowBoardResource.WhiteRook },
+            { 'B', ShadowBoardResource.WhiteBishop },
+            { 'N', ShadowBoardResource.WhiteKnight },
+            { 'K', ShadowBoardResource.WhiteKing },
+            { 'Q', ShadowBoardResource.WhiteQueen },
+            { 'P', ShadowBoardResource.WhitePawn },
+        };
+
+        private static readonly Dictionary<char, Bitmap> Shadows = new()
+        {
+            { 'r', ShadowBoardResource.RookShadow },
+            { 'b', ShadowBoardResource.BishopShadow },
+            { 'n', ShadowBoardResource.KnightShadow },
+            { 'k', ShadowBoardResource.KingShadow },
+            { 'q', ShadowBoardResource.QueenShadow },
+            { 'p', ShadowBoardResource.PawnShadow },
+            { 'R', ShadowBoardResource.RookShadow },
+            { 'B', ShadowBoardResource.BishopShadow },
+            { 'N', ShadowBoardResource.KnightShadow },
+            { 'K', ShadowBoardResource.KingShadow },
+            { 'Q', ShadowBoardResource.QueenShadow },
+            { 'P', ShadowBoardResource.PawnShadow },
+        };
+
+        private const double CACHE_TIME_MINS = 5;
+        private const long CACHE_MAX_ITEMS = 200;
+
+        private readonly ILogger _logger;
+        private static readonly object gdiLock = new();
+        private static readonly MemoryCache imageCache = new(new MemoryCacheOptions() { SizeLimit = CACHE_MAX_ITEMS });
+
+
+        public void InternalPieceResize(int newSize)
+        {
+            foreach(var pieceEntry in Pieces)
+            {
+                var bmpOut = new Bitmap(newSize, newSize);
+
+                using var graphics = Graphics.FromImage(bmpOut);
+                graphics.SmoothingMode = SmoothingMode.HighQuality;
+                graphics.CompositingQuality = CompositingQuality.HighQuality;
+                graphics.InterpolationMode = InterpolationMode.HighQualityBicubic;
+                graphics.CompositingMode = CompositingMode.SourceCopy;
+               
+
+                
+
+                graphics.DrawImage(pieceEntry.Value, 0, 0,newSize,newSize);
+                graphics.Flush();
+
+
+                Pieces[pieceEntry.Key] = bmpOut;
+            }
+
+            foreach (var shadowsEntry in Shadows)
+            {
+                var bmpOut = new Bitmap(newSize, newSize );
+                
+
+                using var graphics = Graphics.FromImage(bmpOut);
+                graphics.SmoothingMode = SmoothingMode.HighQuality;
+                graphics.CompositingQuality = CompositingQuality.HighQuality;
+                graphics.InterpolationMode = InterpolationMode.HighQualityBicubic;
+                graphics.CompositingMode = CompositingMode.SourceCopy;
+               
+
+
+
+
+                graphics.DrawImage(shadowsEntry.Value, 0, 0, newSize, newSize);
+                graphics.Flush();
+
+
+                Shadows[shadowsEntry.Key] = bmpOut;
+            }
+
+
+        }
+
+
+        public ShadowBoardRenderer(ILogger<ShadowBoardRenderer> logger) : base(logger)
+        {
+            _logger = logger;
+            InternalPieceResize(20);
+        }
+
+        public override Task<byte[]> GetPngImageFromFenAsync(in string fenString, in int imageSize, in bool isFromWhitesPerspective = true)
+        {
+            return GetPngImageDiffFromFenAsync(fenString, fenString, imageSize, isFromWhitesPerspective);
+        }
+
+        public override Task<byte[]> GetPngImageDiffFromFenAsync(in string fenString = "", in string compFenString = "", in int imageSize = 1024, in bool isFromWhitesPerspective = true)
+        {
+            _logger?.LogDebug(message: $"Constructing board for fen [{fenString}]");
+
+            byte[] errorImageOutBytes = null;
+            byte[] imageOutBytes = null;
+
+            try
+            {
+                Monitor.Enter(gdiLock);
+                string cacheKey = $"{isFromWhitesPerspective}-{imageSize}-{fenString}-{compFenString}";
+
+                if (imageCache.TryGetValue<byte[]>(cacheKey, out byte[] cachedBmp))
+                {
+                    imageOutBytes = cachedBmp;
+                }
+                else
+                {
+                    // Dont pass in the blank board unless customised for some reason...it is slower!
+                    using Bitmap boardBmp = RenderBoard(//blankBoard: blankBoard,
+                                                        //whiteSquareColour: Color.FromArgb(255, 238, 238, 210),
+                                                        //blackSquareColour: Color.FromArgb(255, 118, 150, 86),
+                                                        //errorSquareColour: Color.FromArgb(150, Color.Red),
+                                                        whiteSquareColour: Color.PaleTurquoise,
+                                                        blackSquareColour: Color.DarkCyan,
+                                                        errorSquareColour: Color.FromArgb(150, Color.Yellow),
+                                                        fenString: fenString,
+                                                        fenCompareString: compFenString,
+                                                        requestedSizeOut: imageSize,
+                                                        internalRenderSize: 1,
+                                                        requestHighQualityComposite: true,
+                                                        shadowOffsetX: 2,
+                                                        shadowOffsetY: 2,
+                                                        isFlipRequired: !isFromWhitesPerspective
+                                                        );
+
+                    MemoryCacheEntryOptions cacheEntryOptions = new();
+                    cacheEntryOptions.SetPriority(CacheItemPriority.Normal)
+                                     .SetSize(1)
+                                     .SetSlidingExpiration(TimeSpan.FromMinutes(CACHE_TIME_MINS));
+
+                    //Save as byte array and cache image
+                    imageOutBytes = boardBmp.ConvertToPngByteArray();
+                    imageCache.Set(cacheKey, imageOutBytes, cacheEntryOptions);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogDebug($"Rendering board error [{fenString}] [{ex.Message}]");
+
+                using Bitmap bmp = new(imageSize, imageSize);
+                using Graphics g = Graphics.FromImage(bmp);
+                g.DrawString($"ERROR RENDERING IMAGE{Environment.NewLine}{ex.Message}{Environment.NewLine}{ex.StackTrace}", new Font("Segoe UI", 12), Brushes.Black, new PointF(5, 20));
+                g.Flush();
+                errorImageOutBytes = bmp.ConvertToPngByteArray();
+                imageOutBytes = null;
+            }
+            finally
+            {
+                Monitor.Exit(gdiLock);
+            }
+
+            return Task.FromResult(imageOutBytes ?? errorImageOutBytes);
+        }
+
+        private static Bitmap RenderBoard(in Bitmap blankBoard = null, // Slower than passing colours
+                                          in Color? whiteSquareColour = null,
+                                          in Color? blackSquareColour = null,
+                                          in Color? errorSquareColour = null,
+                                          in string fenString = "8/8/8/8/8/8/8/8",
+                                          in string fenCompareString = "",
+                                          in int requestedSizeOut = 1024,
+                                          in int internalRenderSize = 1, // 1 is best
+                                          in bool requestHighQualityComposite = true,
+                                          in int shadowOffsetX = 25,
+                                          in int shadowOffsetY = 15,
+                                          in bool isFlipRequired = false)
+        {
+            // Make the max return size the natural draw size
+            int squareSize = Pieces['k'].Width;
+            int boardSize = squareSize * 8;
+            int sizeOut = requestedSizeOut == 0 ? boardSize : Math.Min(requestedSizeOut, boardSize);
+
+            char[] fenOut = FenToCharArray(fenString, isFlipRequired);
+            char[] fenOutComp = string.IsNullOrWhiteSpace(fenCompareString) ? fenOut : FenToCharArray(fenCompareString, isFlipRequired);
+
+            Brush whiteSqBrush = new SolidBrush(whiteSquareColour ?? Color.White);
+            Brush errorBrush = new SolidBrush(errorSquareColour ?? Color.Red);
+
+            using Bitmap boardBmp = blankBoard is null ? new(boardSize, boardSize) : new(blankBoard);
+            using Graphics graphics = Graphics.FromImage(boardBmp);
+
+            graphics.SmoothingMode = requestHighQualityComposite ? SmoothingMode.HighQuality : SmoothingMode.HighSpeed;
+            graphics.CompositingQuality = requestHighQualityComposite ? CompositingQuality.HighQuality : CompositingQuality.HighSpeed;
+
+            // Render the squares (if a pre-rendered board was not passed in)...
+            if (blankBoard is null)
+            {
+                graphics.Clear(blackSquareColour ?? Color.Black);
+
+                for (int row = 0; row < 8; row++)
+                {
+                    for (int col = 0; col < 8; col++)
+                    {
+                        if ((row % 2 == 0 && col % 2 == 0) || (row % 2 != 0 && col % 2 != 0))
+                        {
+                            graphics.FillRectangle(whiteSqBrush, col * squareSize, row * squareSize, squareSize, squareSize);
+                        }
+                    }
+                }
+            }
+
+            // ...and add the pieces...
+            for (int row = 0, posCount = 0; row < 8; row++)
+            {
+                for (int col = 0; col < 8; col++, posCount++)
+                {
+                    //...highlighting differences...
+                    if (errorSquareColour.HasValue && fenOut[posCount] != fenOutComp[posCount])
+                    {
+                        graphics.FillRectangle(errorBrush,
+                                               col * squareSize,
+                                               row * squareSize,
+                                               squareSize,
+                                               squareSize);
+                    }
+
+                    //...and finallay adding the pieces
+                    if (Pieces.ContainsKey(fenOut[posCount]))
+                    {
+                        if (shadowOffsetX > 0 || shadowOffsetY > 0)
+                        {
+                            graphics.DrawImage(Shadows[fenOut[posCount]], (col * squareSize) + shadowOffsetX, (row * squareSize) + shadowOffsetY, squareSize, squareSize);
+                        }
+
+                        graphics.DrawImage(Pieces[fenOut[posCount]], col * squareSize, row * squareSize, squareSize, squareSize);
+                    }
+                }
+            }
+
+            //Keeps the memory in check
+            GC.Collect();
+
+            return new(boardBmp, new Size(sizeOut, sizeOut));
+        }
+
+    }
+}
