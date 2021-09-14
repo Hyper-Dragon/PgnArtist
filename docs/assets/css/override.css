@@ -53,8 +53,8 @@ pre {
 .page-header {
   z-index: 20;
   background-color: #0d1117;
-  background-image: url("/ChessStats/assets/images/BoardBackground.png"),
-    url("/ChessStats/assets/images/GlowBackground.png"),
+  background-image: url("/PgnArtist/assets/images/BoardBackground.png"),
+    url("/PgnArtist/assets/images/GlowBackground.png"),
     linear-gradient(120deg, #0d1117 0%, #2e537d 100%);
   background-repeat: no-repeat;
   background-size: contain;
@@ -107,3 +107,4 @@ pre {
 .highlight {
   box-shadow: 0 20px 20px -10px rgba(0, 0, 0, 0.8);
 }
+
