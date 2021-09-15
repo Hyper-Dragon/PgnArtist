@@ -19,7 +19,7 @@
 
   <ItemGroup>
     <PackageReference Include="ChessLib.Parse" Version="1.1.0-alpha" />
-    <PackageReference Include="Microsoft.Extensions.FileProviders.Embedded" Version="5.0.9" />
+    <PackageReference Include="Microsoft.Extensions.FileProviders.Embedded" Version="5.0.10" />
   </ItemGroup>
 
   <ItemGroup>
