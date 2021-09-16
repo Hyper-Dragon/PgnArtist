@@ -1,34 +1,36 @@
-﻿
-namespace PgnArtist.Generic
+﻿namespace PgnArtist.Generic;
+
+public abstract class HeaderBase
 {
-    public abstract class HeaderBase
+    protected readonly GlobalSettings _globalSettings;
+
+    public HeaderBase(GlobalSettings globalSettings)
     {
-        protected readonly GlobalSettings _globalSettings;
+        _globalSettings = globalSettings;
+    }
 
-        public HeaderBase(GlobalSettings globalSettings)
-        {
-            _globalSettings = globalSettings;
-        }
+    protected virtual string[] DisplayTitleImpl()
+    {
+        throw new NotImplementedException("This console app has not been fully implemented!");
+    }
 
-        protected virtual string[] DisplayTitleImpl()
+    public void DisplayTitle(bool clearConsole)
+    {
+        if (_globalSettings.ShouldDisplayHeader)
         {
-            throw new NotImplementedException("This console app has not been fully implemented!");
-        }
-
-        public void DisplayTitle(bool clearConsole)
-        {
-            if (_globalSettings.ShouldDisplayHeader)
+            if (!Console.IsOutputRedirected && clearConsole)
             {
-                if (!Console.IsOutputRedirected && clearConsole) Console.Clear();
+                Console.Clear();
+            }
 
-                DisplayTitleImpl().
+            DisplayTitleImpl().
                     ToList<string>().
                     ForEach((line) =>
                     {
                         Console.WriteLine(
                         line.Substring(0, Console.IsOutputRedirected ? line.Length : Math.Min(Console.WindowWidth - 2, line.Length)));
                     });
-            }
         }
     }
 }
+

@@ -1,16 +1,15 @@
-﻿using PgnArtist.Generic;
-using static PgnArtist.Generic.AutoRegisterAttribute;
+﻿using static PgnArtist.Generic.AutoRegisterAttribute;
 
-namespace PgnArtist
+namespace PgnArtist;
+
+[AutoRegister(RegistrationType.SINGLETON)]
+public sealed class Header : HeaderBase
 {
-    [AutoRegister(RegistrationType.SINGLETON)]
-    public sealed class Header : HeaderBase
-    {
-        public Header(GlobalSettings globalSettings) : base(globalSettings) { }
+    public Header(GlobalSettings globalSettings) : base(globalSettings) { }
 
-        protected override string[] DisplayTitleImpl()
-        {
-            string[] headLines = {@"   ***************************************************************************************",
+    protected override string[] DisplayTitleImpl()
+    {
+        string[] headLines = {@"   ***************************************************************************************",
                                   @"    _______  _______  _              _______  _______ __________________ _______ _________",
                                   @"   (  ____ )(  ____ \( (    /|      (  ___  )(  ____ )\__   __/\__   __/(  ____ \\__   __/",
                                   @"   | (    )|| (    \/|  \  ( |      | (   ) || (    )|   ) (      ) (   | (    \/   ) (   ",
@@ -22,8 +21,8 @@ namespace PgnArtist
                                   @"                                                                                          ",
                                   @"   ******* HYPER-DRAGON :: Ver x.x.x :: https://hyper-dragon.github.io/PgnArtist/  *******"};
 
-            return headLines;
-        }
+        return headLines;
     }
 }
+
 

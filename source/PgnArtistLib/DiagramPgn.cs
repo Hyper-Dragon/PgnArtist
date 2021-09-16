@@ -1,17 +1,23 @@
-﻿
-using ChessLib.Data;
+﻿using ChessLib.Data;
 using ChessLib.Parse.PGN;
 using DynamicBoard;
 using Microsoft.Extensions.FileProviders;
 using PgnArtistLib.Data;
+using System;
+using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Drawing.Imaging;
 using System.Drawing.Text;
 using System.Globalization;
+using System.IO;
+using System.Linq;
+using System.Runtime.Versioning;
+using System.Threading.Tasks;
 
 namespace PgnArtistLib;
 
+[SupportedOSPlatform("windows")]
 public class DiagramPgn
 {
     private const string BOARD_FEN = @"rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR";
@@ -24,9 +30,9 @@ public class DiagramPgn
     public int SpacerSizeY { get; set; } = 30;
     public int StripeTxtOffset { get; set; } = 16;
     public float ConnectSize { get; set; } = 2.0f;
-    public int BlockSizeX { get { return BoardSize + SpacerSizeX; } }
-    public int BlockSizeY { get { return BoardSize + SpacerSizeY; } }
-    public string SubmittedPgn { get { return _submittedPgn ?? ""; } }
+    public int BlockSizeX => BoardSize + SpacerSizeX;
+    public int BlockSizeY => BoardSize + SpacerSizeY;
+    public string SubmittedPgn => _submittedPgn ?? "";
 
     private string? _submittedPgn;
     private IEnumerable<Game<ChessLib.Data.MoveRepresentation.MoveStorage>>? _parsedGames;
@@ -127,7 +133,10 @@ public class DiagramPgn
             }
 
 
-            if (isIncluded) filteredGames.Add(game);
+            if (isIncluded)
+            {
+                filteredGames.Add(game);
+            }
 
 
             //game.TagSection.Get("ECO")
@@ -172,7 +181,7 @@ public class DiagramPgn
                         {
                             moveLines[moveCount].Add($"{moveKey}{addedCount}", ("", "", null, ""));
                         }
-                        catch (Exception ex)
+                        catch (Exception)
                         {
                             Console.WriteLine($"ERROR {addedCount}");
                         }
