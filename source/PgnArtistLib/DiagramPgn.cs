@@ -94,6 +94,7 @@ public class DiagramPgn
         {
             new SortedList<string, (string, string, Image, string)>()
         };
+
         moveLines[0].Add(BOARD_FEN, ("", BOARD_FEN, startBoardresizedBmp, ""));
 
         List<Game<ChessLib.Data.MoveRepresentation.MoveStorage>> filteredGames = new();

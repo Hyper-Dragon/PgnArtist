@@ -13,44 +13,44 @@ public sealed class ConsoleApplication : ConsoleApplicationBase
         _diagramPgn = diagramPgn;
     }
 
-    protected override async Task<bool> PreRunImplAsync(CommandLineOptions commandLineOptions)
+    protected override async Task<bool> PreRunImplAsync(CommandLineOptions cmdLineOpts)
     {
 
-        if (commandLineOptions.PgnFilePath is null || !commandLineOptions.PgnFilePath.Exists)
+        if (cmdLineOpts.PgnFilePath is null || !cmdLineOpts.PgnFilePath.Exists)
         {
             Console.WriteLine(">> ERROR :: PGN File Does Not Exist.");
             return false;
         }
 
-        if (!commandLineOptions.PgnFilePath.FullName.EndsWith(".pgn"))
+        if (!cmdLineOpts.PgnFilePath.FullName.EndsWith(".pgn"))
         {
-            Console.WriteLine($">> ERROR :: {commandLineOptions.PgnFilePath.FullName} must be a '.pgn' file.");
+            Console.WriteLine($">> ERROR :: {cmdLineOpts.PgnFilePath.FullName} must be a '.pgn' file.");
             return false;
         }
 
-        if (commandLineOptions.DiagramOutFilePath is null)
+        if (cmdLineOpts.DiagramOutFilePath is null)
         {
             Console.WriteLine(">> ERROR :: Output File Is Not Defined.");
             return false;
         }
 
-        if (!commandLineOptions.DiagramOutFilePath.FullName.EndsWith(".png"))
+        if (!cmdLineOpts.DiagramOutFilePath.FullName.EndsWith(".png"))
         {
-            Console.WriteLine($">> ERROR :: {commandLineOptions.DiagramOutFilePath.FullName} must be a '.png' file.");
+            Console.WriteLine($">> ERROR :: {cmdLineOpts.DiagramOutFilePath.FullName} must be a '.png' file.");
             return false;
         }
 
-        if (commandLineOptions.DiagramOutFilePath.Exists && !commandLineOptions.OverwriteImage)
+        if (cmdLineOpts.DiagramOutFilePath.Exists && !cmdLineOpts.OverwriteImage)
         {
-            Console.WriteLine($">> ERROR :: {commandLineOptions.DiagramOutFilePath.FullName} already exists.");
+            Console.WriteLine($">> ERROR :: {cmdLineOpts.DiagramOutFilePath.FullName} already exists.");
             return false;
         }
 
-        _helpers.StartTimedSection($">> Processing PGN {commandLineOptions.PgnFilePath}");
-        _ = await _diagramPgn.AssignPgn(commandLineOptions.PgnFilePath);
+        _helpers.StartTimedSection($">> Processing PGN {cmdLineOpts.PgnFilePath}");
+        _ = await _diagramPgn.AssignPgn(cmdLineOpts.PgnFilePath);
         _helpers.EndTimedSection(">> PGN Processing Done");
 
-        if (commandLineOptions.DisplayPgn)
+        if (cmdLineOpts.DisplayPgn)
         {
             _helpers.DisplaySection("Loadeding PGN", false);
             Console.WriteLine(_diagramPgn.SubmittedPgn);
