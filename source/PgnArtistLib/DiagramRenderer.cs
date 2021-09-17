@@ -105,10 +105,10 @@ internal class DiagramRenderer
                                                            BoxHeight);
 
                                     graphics.DrawString($"{(int)Math.Round((loopY + 1) / 2d, MidpointRounding.AwayFromZero)}.{((loopY + 1) % 2d != 0 ? "" : "..")} {moveLines[loopY + 1].Values[loopNextRowX].San}",
-                                                            headFont,
-                                                            textBrush ?? Brushes.White,
-                                                            (SpacerSizeX) + ((loopNextRowX * BlockSizeX) + (SpacerSizeX / 2) + (SQUARE_SIZE / 2)) - (BoxWidth / 2) + 1,
-                                                            ((loopY * BlockSizeY) + (SpacerSizeY / 2) + (SQUARE_SIZE) + (SpacerSizeY / 2)) - (BoxHeight / 2) + 1);
+                                                        headFont,
+                                                        textBrush ?? Brushes.White,
+                                                        (SpacerSizeX) + ((loopNextRowX * BlockSizeX) + (SpacerSizeX / 2) + (SQUARE_SIZE / 2)) - (BoxWidth / 2) + 1,
+                                                        ((loopY * BlockSizeY) + (SpacerSizeY / 2) + (SQUARE_SIZE) + (SpacerSizeY / 2)) - (BoxHeight / 2) + 1);
                                 }
                             }
                         }

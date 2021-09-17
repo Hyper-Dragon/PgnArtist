@@ -1,8 +1,19 @@
 ﻿namespace PgnArtistLib.Data;
 
+
+
+public record GameLine
+{
+    public string GameLineTitle { get; set; }  = "";
+    public List<SortedList<string, MoveLine>> MoveLines { get; } = new();
+}
+
+
+
 public record class MoveLine
 {
     public string San { get; set; } = "";
+    public string LastBoardFen { get; set; } = "";
     public string BoardFen { get; set; } = "";
     public Image? BoardImage { get; set; }
     public string Comment { get; set; } = "";

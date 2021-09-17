@@ -3,6 +3,7 @@
 internal class ProcessParsedPgn
 {
     private const string BOARD_FEN = @"rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR";
+
     internal static List<Game<MoveStorage>> GetFilteredGameList(MoveImageData moveImageData)
     {
         List<Game<MoveStorage>> filteredGames = new();
@@ -24,15 +25,6 @@ internal class ProcessParsedPgn
                 isIncluded = false;
             }
 
-            //if (!string.IsNullOrEmpty(filter.FilterEither) &&
-            //
-            //
-            //    string.Equals(game.TagSection.Get("White"), filter.FilterWhite, StringComparison.InvariantCultureIgnoreCase) ||
-            //         string.Equals(game.TagSection.Get("Black"), filter.FilterBlack, StringComparison.InvariantCultureIgnoreCase) )
-            //{
-            //    isIncluded = false;
-            //}
-
             if (!string.IsNullOrEmpty(moveImageData.Filter.FilterECO) &&
                 !string.Equals(game.TagSection.Get("ECO"), moveImageData.Filter.FilterECO, StringComparison.InvariantCultureIgnoreCase))
             {
@@ -44,46 +36,36 @@ internal class ProcessParsedPgn
             {
                 filteredGames.Add(game);
             }
-
-
-            //game.TagSection.Get("ECO")
-
-
         }
+
         return filteredGames;
     }
 
-    [SupportedOSPlatform("windows")]
+
     internal static async Task ProcessGame(bool isFromWhitesPerspective,
-                                          IBoardRenderer boardRenderer,
                                           int maxWidth,
                                           Game<MoveStorage> game,
                                           GameFilter gameFilter,
-                                          SortedList<string, string> lastMoveNameList,
                                           List<SortedList<string, MoveLine>> moveLines)
     {
         string moveKey = BOARD_FEN;
+        string lastGameKey = BOARD_FEN;
         int moveCount = 0;
         int plyCount = 0;
-        string lastGameKey = BOARD_FEN;
 
         while (game.HasNextMove && (plyCount++) < gameFilter.MaxPly)
         {
+            lastGameKey = $"{game.CurrentFEN.Split(" ")[0]}";
             game.TraverseForward();
 
-            string[] fenSplit = game.CurrentFEN.Split(" ");
-            string gameKey = $"{fenSplit[0]}";
+            string gameKey = $"{game.CurrentFEN.Split(" ")[0]}";
             moveKey += gameKey;
 
             if (moveLines.Count <= ++moveCount) { moveLines.Add(new SortedList<string, MoveLine>()); }
 
             if (!moveLines[moveCount].ContainsKey($"{moveKey}"))
             {
-                byte[] boardImgBytes = await boardRenderer.GetPngImageDiffFromFenAsync(gameKey, lastGameKey, DiagramRenderer.SQUARE_SIZE, isFromWhitesPerspective);
-                lastGameKey = gameKey;
-                using MemoryStream memStreamBoard = new(boardImgBytes);
-                Bitmap resizedBmp = (Bitmap)Bitmap.FromStream(memStreamBoard);
-                moveLines[moveCount].Add($"{moveKey}", new MoveLine() { San = game.CurrentMoveNode.Value.SAN, BoardFen = $"{gameKey}", BoardImage = resizedBmp, Comment = game.CurrentMoveNode.Value.Comment });
+                moveLines[moveCount].Add($"{moveKey}", new MoveLine() { San = game.CurrentMoveNode.Value.SAN, LastBoardFen = lastGameKey, BoardFen = $"{gameKey}", BoardImage = null, Comment = game.CurrentMoveNode.Value.Comment });
             }
 
             if (moveCount + 1 < moveLines.Count)
@@ -101,50 +83,31 @@ internal class ProcessParsedPgn
                     }
                 }
             }
-
-            maxWidth = Math.Max(maxWidth, moveLines[moveCount].Count);
-
-            if (!game.HasNextMove && game.TagSection.ContainsKey("Opening"))
-            {
-                lastMoveNameList.Add(moveKey, game.TagSection["Opening"]);
-            }
-            else if (!game.HasNextMove)
-            {
-                try
-                {
-                    if (!lastMoveNameList.ContainsKey(moveKey))
-                    {
-                        lastMoveNameList.Add(moveKey, $"[{game.TagSection["White"]} vs {game.TagSection["Black"]} >> { game.TagSection["Termination"] }]");
-                    }
-                }
-                catch (Exception) { Console.WriteLine("I know - fix me"); }
-            }
         }
 
         game.GoToInitialState();
     }
 
 
-
     [SupportedOSPlatform("windows")]
     internal static async Task<RenderableGame> BuildMoveImageData(MoveImageData moveImageData)
     {
-        //Render initial position
         IBoardRenderer boardRenderer = new ShadowBoardRenderer(logger: null);
-        byte[] boardImgBytes = await boardRenderer.GetPngImageFromFenAsync(BOARD_FEN, DiagramRenderer.SQUARE_SIZE, moveImageData.IsFromWhitesPerspective).ConfigureAwait(false);
 
-        using MemoryStream memStream = new(boardImgBytes);
-        Bitmap startBoardresizedBmp = (Bitmap)Bitmap.FromStream(memStream);
+        //Render initial position
+        //IBoardRenderer boardRenderer = new ShadowBoardRenderer(logger: null);
+        //using MemoryStream memStream = new(await boardRenderer.GetPngImageFromFenAsync(BOARD_FEN, DiagramRenderer.SQUARE_SIZE, moveImageData.IsFromWhitesPerspective).ConfigureAwait(false));
+        //Bitmap startBoardresizedBmp = (Bitmap)Bitmap.FromStream(memStream);
 
-        SortedList<string, string> lastMoveNameList = new();
+
 
         int maxWidth = 0;
+        SortedList<string, string> lastMoveNameList = new();
 
-        List<SortedList<string, MoveLine>> moveLines = new()
-        {
-            new SortedList<string, MoveLine>()
-        };
-        moveLines[0].Add(BOARD_FEN, new MoveLine() { BoardFen = BOARD_FEN, BoardImage = startBoardresizedBmp, San = "", Comment = "" });
+        GameLine moveLines = new();
+
+        moveLines.MoveLines.Add(new());
+        moveLines.MoveLines[0].Add(BOARD_FEN, new MoveLine() { BoardFen = BOARD_FEN, BoardImage = null, San = "", Comment = "" });
 
         List<Game<MoveStorage>> filteredGames = GetFilteredGameList(moveImageData);
 
@@ -157,36 +120,72 @@ internal class ProcessParsedPgn
         //        });
 
 
-        foreach (var game in (moveImageData.Filter.TakeGamesFromEnd) ? 
-                              filteredGames.TakeLast(moveImageData.Filter.MaxGames) : 
-                              filteredGames.Take(moveImageData.Filter.MaxGames)) 
+        foreach (var game in (moveImageData.Filter.TakeGamesFromEnd) ?
+                              filteredGames.TakeLast(moveImageData.Filter.MaxGames) :
+                              filteredGames.Take(moveImageData.Filter.MaxGames))
         {
-            await ProcessGame(moveImageData.IsFromWhitesPerspective, boardRenderer, maxWidth, game, moveImageData.Filter, lastMoveNameList, moveLines);
-        }
- 
+            await ProcessGame(moveImageData.IsFromWhitesPerspective, maxWidth, game, moveImageData.Filter, moveLines.MoveLines);
 
-        for (int loopY = 1; loopY < (moveLines.Count - 1); loopY++)
-        {
-            for (int loopX = 0; loopX < moveLines[loopY].Count; loopX++)
+
+            if (game.TagSection.ContainsKey("Opening"))
             {
-                if (moveLines[loopY].Values[loopX].BoardImage != null)
+                Console.WriteLine($"FOUND: {game.TagSection["Opening"]}");
+                moveLines.GameLineTitle = game.TagSection["Opening"];
+
+                //if (!lastMoveNameList.ContainsKey(moveLines.MoveLines.Last().Last().Key))
+                //{
+                //    lastMoveNameList.Add(moveLines.MoveLines.Last().Last().Key, game.TagSection["Opening"]);
+                //    Console.WriteLine($"FOUND: {game.TagSection["Opening"]}");
+                //}
+            }
+            else if (!game.HasNextMove)
+            {
+                try
                 {
-                    int addedCount = moveLines[loopY + 1].Where(x => x.Key.StartsWith(moveLines[loopY].Keys[loopX], StringComparison.OrdinalIgnoreCase)).Count();
+                    lastMoveNameList.Add(moveLines.MoveLines.Last().Last().Key, $"[{game.TagSection["White"]} vs {game.TagSection["Black"]} >> { game.TagSection["Termination"] }]");
+                }
+                catch (Exception) { Console.WriteLine("I know - fix me"); }
+            }
+        }
+
+
+        moveLines.MoveLines.ForEach(async games =>
+        {
+            foreach (var game in games)
+            {
+                if (string.IsNullOrEmpty(game.Value.BoardFen)) continue;
+
+                byte[] boardImgBytes = await boardRenderer.GetPngImageDiffFromFenAsync(game.Value.BoardFen,
+                                                                                       game.Value.LastBoardFen,
+                                                                                       DiagramRenderer.SQUARE_SIZE,
+                                                                                       moveImageData.IsFromWhitesPerspective);
+                using MemoryStream memStreamBoard = new(boardImgBytes);
+                game.Value.BoardImage = (Bitmap)Bitmap.FromStream(memStreamBoard);
+            }
+        });
+
+
+        for (int loopY = 1; loopY < (moveLines.MoveLines.Count - 1); loopY++)
+        {
+            for (int loopX = 0; loopX < moveLines.MoveLines[loopY].Count; loopX++)
+            {
+                if (moveLines.MoveLines[loopY].Values[loopX].BoardImage != null)
+                {
+                    int addedCount = moveLines.MoveLines[loopY + 1].Where(x => x.Key.StartsWith(moveLines.MoveLines[loopY].Keys[loopX], StringComparison.OrdinalIgnoreCase)).Count();
 
                     if (addedCount == 0)
                     {
-                        for (int loopInnerY = loopY + 1; loopInnerY < moveLines.Count; loopInnerY++)
+                        for (int loopInnerY = loopY + 1; loopInnerY < moveLines.MoveLines.Count; loopInnerY++)
                         {
-                            moveLines[loopInnerY].Add($"{moveLines[loopY].Keys[loopX]}{addedCount}", new MoveLine { San = "", BoardImage = null, BoardFen = "", Comment = "" });
+                            moveLines.MoveLines[loopInnerY].Add($"{moveLines.MoveLines[loopY].Keys[loopX]}{addedCount}", new MoveLine { San = "", BoardImage = null, BoardFen = "", Comment = "" });
                         }
                     }
                 }
             }
 
-            maxWidth = Math.Max(maxWidth, moveLines[loopY].Count);
+            maxWidth = Math.Max(maxWidth, moveLines.MoveLines[loopY].Count);
         }
 
-        return new RenderableGame() { LastMoveNameList = lastMoveNameList, MoveLines = moveLines, MaxWidth = maxWidth };
+        return new RenderableGame() { LastMoveNameList = lastMoveNameList, MoveLines = moveLines.MoveLines, MaxWidth = maxWidth };
     }
-
 }
