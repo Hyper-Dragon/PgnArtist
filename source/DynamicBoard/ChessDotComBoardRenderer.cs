@@ -27,7 +27,7 @@ public sealed class ChessDotComBoardRenderer : BoardRendererBase, IBoardRenderer
 
     public override Task<byte[]> GetPngImageDiffFromFenAsync(in string fenString = "", in string compFenString = "", in int imageSize = 1024, in bool isFromWhitesPerspective = true)
     {
-        _logger?.LogDebug(message: "Constructing board for fen [{FenString}]",fenString);
+        _logger?.LogDebug(message: "Constructing board for fen [{FenString}]", fenString);
 
         HttpClient httpClient = _httpClientFactory.CreateClient();
         Bitmap resizedBmpOut;
