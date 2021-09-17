@@ -372,9 +372,10 @@ public class DiagramPgn
 
     private void RenderConnectors(Graphics graphics, List<SortedList<string, (string, string, Image, string)>> moveLines, Pen connectorPen, int shadowOffset = 0)
     {
+        graphics.TextRenderingHint = TextRenderingHint.AntiAlias;
+
         for (int loopY = 0; loopY < moveLines.Count; loopY++)
-        {
-            graphics.TextRenderingHint = TextRenderingHint.AntiAlias;
+        {    
             KeyValuePair<string, (string, string, Image, string)>[] moveLine = moveLines[loopY].OrderBy(x => x.Key).ToArray();
 
             for (int loopX = 0; loopX < moveLine.Length; loopX++)
