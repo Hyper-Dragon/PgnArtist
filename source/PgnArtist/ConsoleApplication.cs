@@ -76,11 +76,11 @@ public sealed class ConsoleApplication : ConsoleApplicationBase
 
 
         _helpers.StartTimedSection(">> Processing Move Data");
-        await _diagramPgn.BuildMoveData(!cmdOpts.FlipBoard, cmdOpts.DiagramTitle, cmdOpts.TitleSize, filter);
+        await _diagramPgn.BuildMoveData(!cmdOpts.FlipBoard, filter);
         _helpers.EndTimedSection(">> Processing Complete");
 
         _helpers.StartTimedSection(">> Generating Diagram");
-        System.Drawing.Bitmap? image = await _diagramPgn.GenerateDiagram(!cmdOpts.FlipBoard, cmdOpts.DiagramTitle, cmdOpts.TitleSize, filter);
+        System.Drawing.Bitmap? image = await _diagramPgn.GenerateDiagram(cmdOpts.DiagramTitle, cmdOpts.TitleSize);
         _helpers.EndTimedSection(">> Diagram Generated");
 
         string fileOut = $"{(cmdOpts?.DiagramOutFilePath?.FullName ?? "")}";

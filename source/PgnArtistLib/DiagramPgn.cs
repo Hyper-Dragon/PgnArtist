@@ -29,16 +29,17 @@ public class DiagramPgn
     public int SpacerSizeX { get; set; } = 20;
     public int SpacerSizeY { get; set; } = 30;
     public int StripeTxtOffset { get; set; } = 19;
-    public float ConnectSize { get; set; } = 5.0f;
+    public float ConnectSize { get; set; } = 3.0f;
     public int BlockSizeX => BoardSize + SpacerSizeX;
     public int BlockSizeY => BoardSize + SpacerSizeY;
     public string SubmittedPgn => _submittedPgn ?? "";
+    public int BoardShadowOffset { get; set; } = 8;
+    
 
     private string? _submittedPgn;
     private IEnumerable<Game<ChessLib.Data.MoveRepresentation.MoveStorage>>? _parsedGames;
-
     private (SortedList<string, string> LastMoveNameList, List<SortedList<string, (string, string, Image, string)>> MoveLines, int MaxWidth) _moveData;
-    //public DiagramPgn() { }
+
 
     public async Task<bool> AssignPgn(string pgnText)
     {
@@ -55,7 +56,7 @@ public class DiagramPgn
         return true;
     }
 
-    public async Task BuildMoveData(bool isFromWhitesPerspective, string diagramTitle, float titleSize, GameFilter filter)
+    public async Task BuildMoveData(bool isFromWhitesPerspective, GameFilter filter)
     {
         if (_parsedGames is null)
         {
@@ -65,27 +66,14 @@ public class DiagramPgn
         _moveData = await BuildMoveImageData(_parsedGames, filter, isFromWhitesPerspective);
     }
 
-    public async Task<Bitmap> GenerateDiagram(bool isFromWhitesPerspective, string diagramTitle, float titleSize, GameFilter filter)
+    public async Task<Bitmap> GenerateDiagram(string diagramTitle, float titleSize)
     {
-        if (_parsedGames is null)// || _moveData is null)
-        {
-            throw new NullReferenceException("Call 'LoadPgn' and then 'BuildMoveData' BEFORE trying to generate any diagrams.");
-        }
-
-        return await Task.Run<Bitmap>(() =>
-        {
-            return (Bitmap) RenderMoveImageData(_moveData.LastMoveNameList, _moveData.MoveLines, diagramTitle, titleSize, _moveData.MaxWidth);
-        });
-
+        if (_parsedGames is null) throw new NullReferenceException("Call 'LoadPgn' and then 'BuildMoveData' BEFORE trying to generate any diagrams.");
+        
+        return await Task.Run<Bitmap>(() => RenderMoveImageData(_moveData.LastMoveNameList, _moveData.MoveLines, diagramTitle, titleSize));
     }
 
-    private static async Task<IEnumerable<Game<ChessLib.Data.MoveRepresentation.MoveStorage>>> ParseAndValidatePgn(string preParsedPgn)
-    {
-        PGNParser pgnParser = new();
-        System.Collections.Generic.IEnumerable<Game<ChessLib.Data.MoveRepresentation.MoveStorage>> parsedPgn = await pgnParser.GetGamesFromPGNAsync(preParsedPgn.ToString(CultureInfo.InvariantCulture));
-
-        return parsedPgn;
-    }
+    private static async Task<IEnumerable<Game<ChessLib.Data.MoveRepresentation.MoveStorage>>> ParseAndValidatePgn(string preParsedPgn) => await (new PGNParser()).GetGamesFromPGNAsync(preParsedPgn.ToString(CultureInfo.InvariantCulture));
 
     private static async Task<(SortedList<string, string> LastMoveNameList, List<SortedList<string, (string, string, Image, string)>> MoveLines, int MaxWidth)> BuildMoveImageData(IEnumerable<Game<ChessLib.Data.MoveRepresentation.MoveStorage>> parsedGames, GameFilter filter, bool isFromWhitesPerspective)
     {
@@ -107,8 +95,6 @@ public class DiagramPgn
             new SortedList<string, (string, string, Image, string)>()
         };
         moveLines[0].Add(BOARD_FEN, ("", BOARD_FEN, startBoardresizedBmp, ""));
-
-
 
         List<Game<ChessLib.Data.MoveRepresentation.MoveStorage>> filteredGames = new();
 
@@ -206,12 +192,16 @@ public class DiagramPgn
                 {
                     lastMoveNameList.Add(moveKey, game.TagSection["Opening"]);
                 }
-                else
+                else if (!game.HasNextMove)
                 {
-                    if (!lastMoveNameList.ContainsKey(moveKey))
+                    try
                     {
-                        lastMoveNameList.Add(moveKey, $"[{game.TagSection["White"]} vs {game.TagSection["Black"]} >> { game.TagSection["Termination"] }]");
+                        if (!lastMoveNameList.ContainsKey(moveKey))
+                        {
+                            lastMoveNameList.Add(moveKey, $"[{game.TagSection["White"]} vs {game.TagSection["Black"]} >> { game.TagSection["Termination"] }]");
+                        }
                     }
+                    catch (Exception) { Console.WriteLine("I know - fix me"); }
                 }
             }
 
@@ -242,187 +232,59 @@ public class DiagramPgn
         return (lastMoveNameList, moveLines, maxWidth);
     }
 
-    private Bitmap RenderMoveImageData(SortedList<string, string> lastMoveNameList, List<SortedList<string, (string, string, Image, string)>> moveLines, string diagramTitle, float titleSize, int maxWidth)
+    private Bitmap RenderMoveImageData(SortedList<string, string> lastMoveNameList, List<SortedList<string, (string, string, Image, string)>> moveLines, string diagramTitle, float titleSize)
     {
         // Create font/brush/pen.
         using Font headFont = new(FontFamily.GenericSansSerif, HeadFontSize);
-        using Font stripeFont = new(FontFamily.GenericMonospace, ((float)SpacerSizeX) / 2f);
+        using Font stripeFont = new(FontFamily.GenericMonospace, SpacerSizeX / 2f);
         using Brush drawBrush = new SolidBrush(Color.FromArgb(255, 255, 255, 255));
         using Brush moveBkgBrush = new SolidBrush(Color.FromArgb(235, 200, 0, 0));
-        using Brush transBrush = new SolidBrush(Color.FromArgb(100, 0, 0, 0));
+        using Brush transBrush = new SolidBrush(Color.FromArgb(200, 0, 0, 0));
+        using Brush bkgStripeBrush = new SolidBrush(Color.FromArgb(5, 255, 255, 255));
+        using Pen connectorShadowPen = new(new SolidBrush(Color.FromArgb(200, 0, 0, 0))) { Width = ConnectSize };
         using Pen connectorPen = new(Brushes.Orange) { Width = ConnectSize };
-        using Pen connectorShadowPen = new(new SolidBrush(Color.FromArgb(100, 0, 0, 0))) { Width = ConnectSize };
 
-        var maxMoveLine = moveLines.Max(item => item.Count);
+        CreateDrawingSurface(moveLines, out Bitmap image, out Graphics graphics);
 
-        Bitmap image = new((maxMoveLine * BlockSizeX) + SpacerSizeX + (SpacerSizeX / 2),
-                            (moveLines.Count * BlockSizeY) + (SpacerSizeY / 4),
-                            PixelFormat.Format32bppArgb);
+        RenderBackgroundFromStream(graphics,
+                                   image.Size,
+                                   (new EmbeddedFileProvider(typeof(DiagramPgn).Assembly)).GetFileInfo("DefaultBkg01.png").CreateReadStream());
 
-        using Graphics graphics = Graphics.FromImage(image);
+        RenderTitle(graphics, transBrush, diagramTitle, titleSize, shadowOffset: BoardShadowOffset);
+        RenderTitle(graphics, Brushes.White, diagramTitle, titleSize);
+        RenderBackgroundStripes(graphics, bkgStripeBrush, image.Size);
+        RenderPinstripes(graphics, moveLines, lastMoveNameList, drawBrush, stripeFont, image.Size);
+        RenderBoards(graphics, transBrush, moveLines, shadowOffset: BoardShadowOffset);
+        RenderMoveText(graphics, moveLines, headFont, transBrush, shadowOffset: BoardShadowOffset);
+        RenderConnectors(graphics, moveLines, connectorShadowPen, shadowOffset: BoardShadowOffset);
+        RenderConnectors(graphics, moveLines, connectorPen);
+        RenderMoveText(graphics, moveLines, headFont, moveBkgBrush, textBrush: drawBrush);
+        RenderBoards(graphics, transBrush, moveLines);
+
+        return image;
+    }
+
+    private void CreateDrawingSurface(List<SortedList<string, (string, string, Image, string)>> moveLines, out Bitmap image, out Graphics graphics)
+    {
+        image = new(((moveLines.Max(item => item.Count)) * BlockSizeX) + SpacerSizeX + (SpacerSizeX / 2),
+                    (moveLines.Count * BlockSizeY) + (SpacerSizeY / 4),
+                    PixelFormat.Format32bppArgb);
+
+        graphics = Graphics.FromImage(image);
         graphics.CompositingQuality = CompositingQuality.HighQuality;
         graphics.InterpolationMode = InterpolationMode.HighQualityBicubic;
         graphics.CompositingMode = CompositingMode.SourceOver;
         graphics.SmoothingMode = SmoothingMode.AntiAlias;
         graphics.TextRenderingHint = TextRenderingHint.AntiAlias;
-
         graphics.Clear(Color.Black);
+    }
 
-        EmbeddedFileProvider embeddedProvider = new(typeof(DiagramPgn).Assembly);
-
-        using (Stream reader = embeddedProvider.GetFileInfo("DefaultBkg01.png").CreateReadStream())
+    private void RenderMoveText(Graphics graphics, List<SortedList<string, (string, string, Image, string)>> moveLines, Font headFont, Brush moveBkgBrush, int shadowOffset = 0, Brush? textBrush = null)
+    {
+        if (textBrush is null && shadowOffset == 0)
         {
-            Image bkgImage = Image.FromStream(reader);
-
-            // Set the wrap mode.
-            using ImageAttributes imageAttr = new();
-            imageAttr.SetWrapMode(WrapMode.Tile);
-
-            // Create a TextureBrush.
-            Rectangle brushRect = new(0, 0, bkgImage.Width, bkgImage.Height);
-            using TextureBrush myTBrush = new(bkgImage, brushRect, imageAttr);
-
-            // Draw to the screen a rectangle filled with the texture
-            graphics.FillRectangle(myTBrush, 0, 0, image.Width, image.Height);
-
-            graphics.DrawString(diagramTitle,
-                new Font(FontFamily.GenericSansSerif, titleSize, FontStyle.Regular),
-                Brushes.Black,
-                205,
-                30);
-
-
-            graphics.DrawString(diagramTitle,
-                new Font(FontFamily.GenericSansSerif, titleSize, FontStyle.Regular),
-                Brushes.White,
-                200,
-                25);
-
+            throw new ArgumentException("You must provide a 'textBrush' if is 'ShadowLayer' is false");
         }
-
-        // Draw the horezontal stripes
-        using Brush hStripeBrush = new SolidBrush(Color.FromArgb(5, 255, 255, 255));
-        for (int loopY = 1; loopY < moveLines.Count; loopY += 2)
-        {
-            Console.WriteLine($">>>> {"Horizontal Stripe (Y)",30} {loopY,4}");
-            graphics.FillRectangle(hStripeBrush, new Rectangle(0, loopY * BlockSizeY, image.Width, BlockSizeY));
-        }
-
-
-
-        while (true)
-        {
-            //Draw Pinstripes
-            int loopYYYY = moveLines.Count - 1;
-
-            Console.WriteLine($">>>> {"Pin Stripe (Y)",30} {loopYYYY,4}");
-
-            graphics.TextRenderingHint = TextRenderingHint.AntiAliasGridFit;
-            KeyValuePair<string, (string, string, Image, string)>[] moveLine = moveLines[loopYYYY].OrderBy(x => x.Key).ToArray();
-
-            for (int loopX = 0; loopX < moveLine.Length; loopX++)
-            {
-                //Draw Srtipes   
-                if (lastMoveNameList.ContainsKey(moveLines[loopYYYY].Keys[loopX]))
-                {
-                    Console.WriteLine($">>>> {loopX,4} {loopYYYY,4} {lastMoveNameList[moveLines[loopYYYY].Keys[loopX]]}");
-
-                    using StringFormat drawFormat = new() { FormatFlags = StringFormatFlags.DirectionVertical };
-                    SizeF stringSize = graphics.MeasureString(lastMoveNameList[moveLines[loopYYYY].Keys[loopX]], stripeFont);
-
-                    for (float txtLoop = (SpacerSizeY / 2) + BlockSizeY; txtLoop < image.Height; txtLoop += (stringSize.Width + 20))
-                    {
-                        graphics.DrawString(lastMoveNameList[moveLines[loopYYYY].Keys[loopX]],
-                                            stripeFont,
-                                            Brushes.Black,
-                                            ((SpacerSizeX) + ((loopX * BlockSizeX) + (SpacerSizeX / 2)) - StripeTxtOffset) + 1,
-                                            txtLoop + 1,
-                                            drawFormat);
-
-                        graphics.DrawString(lastMoveNameList[moveLines[loopYYYY].Keys[loopX]],
-                                            stripeFont,
-                                            drawBrush,
-                                            (SpacerSizeX) + ((loopX * BlockSizeX) + (SpacerSizeX / 2)) - StripeTxtOffset,
-                                            txtLoop,
-                                            drawFormat);
-                    }
-                }
-            }
-
-            break;
-        }
-
-        // Draw the connectors
-        for (int loopY = 0; loopY < moveLines.Count; loopY++)
-        {
-            graphics.TextRenderingHint = TextRenderingHint.AntiAlias;
-            KeyValuePair<string, (string, string, Image, string)>[] moveLine = moveLines[loopY].OrderBy(x => x.Key).ToArray();
-
-            for (int loopX = 0; loopX < moveLine.Length; loopX++)
-            {
-                //Draw Connector
-                if (loopY + 1 < moveLines.Count)
-                {
-                    for (int loopNextRowX = 0; loopNextRowX < moveLines[loopY + 1].Count; loopNextRowX++)
-                    {
-                        if (moveLines[loopY + 1].Keys[loopNextRowX].Contains(moveLines[loopY].Keys[loopX], StringComparison.OrdinalIgnoreCase))
-                        {
-                            if (moveLines[loopY + 1].Values[loopNextRowX].Item3 != null)
-                            {
-                                graphics.DrawLine(connectorShadowPen,
-                                                  3 + (SpacerSizeX) + (loopX * BlockSizeX) + (SpacerSizeX / 2) + (BoardSize / 2),
-                                                    (loopY * BlockSizeY) + (SpacerSizeY / 2) + (BoardSize),
-                                                  3 + (SpacerSizeX) + (loopX * BlockSizeX) + (SpacerSizeX / 2) + (BoardSize / 2),
-                                                    (loopY * BlockSizeY) + (SpacerSizeY / 2) + (BoardSize) + (SpacerSizeY / 2));
-
-                                graphics.DrawLine(connectorShadowPen,
-                                                  3 + (SpacerSizeX) + (loopNextRowX * BlockSizeX) + (SpacerSizeX / 2) + (BoardSize / 2),
-                                                  3 + (loopY * BlockSizeY) + (SpacerSizeY / 2) + (BoardSize) + (SpacerSizeY / 2),
-                                                  3 + (SpacerSizeX) + (loopNextRowX * BlockSizeX) + (SpacerSizeX / 2) + (BoardSize / 2),
-                                                  3 + ((loopY + 1) * BlockSizeY) + (SpacerSizeY / 2));
-
-                                graphics.DrawLine(connectorShadowPen,
-                                                  3 + (SpacerSizeX) + (loopX * BlockSizeX) + (SpacerSizeX / 2) + (BoardSize / 2),
-                                                  3 + (loopY * BlockSizeY) + (SpacerSizeY / 2) + (BoardSize) + (SpacerSizeY / 2),
-                                                  3 + (SpacerSizeX) + (loopNextRowX * BlockSizeX) + (SpacerSizeX / 2) + (BoardSize / 2),
-                                                  3 + ((loopY + 1) * BlockSizeY));
-                            }
-                        }
-                    }
-                }
-
-                if (loopY + 1 < moveLines.Count)
-                {
-                    for (int loopNextRowX = 0; loopNextRowX < moveLines[loopY + 1].Count; loopNextRowX++)
-                    {
-                        if (moveLines[loopY + 1].Keys[loopNextRowX].Contains(moveLines[loopY].Keys[loopX], StringComparison.OrdinalIgnoreCase))
-                        {
-                            if (moveLines[loopY + 1].Values[loopNextRowX].Item3 != null)
-                            {
-                                graphics.DrawLine(connectorPen,
-                                                  (SpacerSizeX) + (loopX * BlockSizeX) + (SpacerSizeX / 2) + (BoardSize / 2),
-                                                  (loopY * BlockSizeY) + (SpacerSizeY / 2) + (BoardSize),
-                                                  (SpacerSizeX) + (loopX * BlockSizeX) + (SpacerSizeX / 2) + (BoardSize / 2),
-                                                  (loopY * BlockSizeY) + (SpacerSizeY / 2) + (BoardSize) + (SpacerSizeY / 2));
-
-                                graphics.DrawLine(connectorPen,
-                                                  (SpacerSizeX) + (loopNextRowX * BlockSizeX) + (SpacerSizeX / 2) + (BoardSize / 2),
-                                                  (loopY * BlockSizeY) + (SpacerSizeY / 2) + (BoardSize) + (SpacerSizeY / 2),
-                                                  (SpacerSizeX) + (loopNextRowX * BlockSizeX) + (SpacerSizeX / 2) + (BoardSize / 2),
-                                                  ((loopY + 1) * BlockSizeY) + (SpacerSizeY / 2));
-
-                                graphics.DrawLine(connectorPen,
-                                                  (SpacerSizeX) + (loopX * BlockSizeX) + (SpacerSizeX / 2) + (BoardSize / 2),
-                                                  (loopY * BlockSizeY) + (SpacerSizeY / 2) + (BoardSize) + (SpacerSizeY / 2),
-                                                  (SpacerSizeX) + (loopNextRowX * BlockSizeX) + (SpacerSizeX / 2) + (BoardSize / 2),
-                                                  ((loopY + 1) * BlockSizeY));
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
 
         for (int loopY = 0; loopY < moveLines.Count; loopY++)
         {
@@ -440,17 +302,28 @@ public class DiagramPgn
                         {
                             if (moveLines[loopY + 1].Values[loopNextRowX].Item3 != null)
                             {
-                                graphics.FillRectangle(moveBkgBrush,
-                                                       (SpacerSizeX) + ((loopNextRowX * BlockSizeX) + (SpacerSizeX / 2) + (BoardSize / 2)) - (BoxWidth / 2),
-                                                       ((loopY * BlockSizeY) + (SpacerSizeY / 2) + (BoardSize) + (SpacerSizeY / 2)) - (BoxHeight / 2),
-                                                       BoxWidth,
-                                                       BoxHeight);
+                                if (shadowOffset > 0)
+                                {
+                                    graphics.FillRectangle(moveBkgBrush,
+                                                           shadowOffset + (SpacerSizeX) + ((loopNextRowX * BlockSizeX) + (SpacerSizeX / 2) + (BoardSize / 2)) - (BoxWidth / 2),
+                                                           shadowOffset + ((loopY * BlockSizeY) + (SpacerSizeY / 2) + (BoardSize) + (SpacerSizeY / 2)) - (BoxHeight / 2),
+                                                           BoxWidth,
+                                                           BoxHeight);
+                                }
+                                else
+                                {
+                                    graphics.FillRectangle(moveBkgBrush,
+                                                           (SpacerSizeX) + ((loopNextRowX * BlockSizeX) + (SpacerSizeX / 2) + (BoardSize / 2)) - (BoxWidth / 2),
+                                                           ((loopY * BlockSizeY) + (SpacerSizeY / 2) + (BoardSize) + (SpacerSizeY / 2)) - (BoxHeight / 2),
+                                                           BoxWidth,
+                                                           BoxHeight);
 
-                                graphics.DrawString($"{(int)Math.Round((loopY + 1) / 2d, MidpointRounding.AwayFromZero)}.{((loopY + 1) % 2d != 0 ? "" : "..")} {moveLines[loopY + 1].Values[loopNextRowX].Item1}",
-                                                        headFont,
-                                                        drawBrush,
-                                                        (SpacerSizeX) + ((loopNextRowX * BlockSizeX) + (SpacerSizeX / 2) + (BoardSize / 2)) - (BoxWidth / 2) + 1,
-                                                        ((loopY * BlockSizeY) + (SpacerSizeY / 2) + (BoardSize) + (SpacerSizeY / 2)) - (BoxHeight / 2) + 1);
+                                    graphics.DrawString($"{(int)Math.Round((loopY + 1) / 2d, MidpointRounding.AwayFromZero)}.{((loopY + 1) % 2d != 0 ? "" : "..")} {moveLines[loopY + 1].Values[loopNextRowX].Item1}",
+                                                            headFont,
+                                                            textBrush ?? Brushes.White,
+                                                            (SpacerSizeX) + ((loopNextRowX * BlockSizeX) + (SpacerSizeX / 2) + (BoardSize / 2)) - (BoxWidth / 2) + 1,
+                                                            ((loopY * BlockSizeY) + (SpacerSizeY / 2) + (BoardSize) + (SpacerSizeY / 2)) - (BoxHeight / 2) + 1);
+                                }
                             }
                         }
                     }
@@ -458,9 +331,10 @@ public class DiagramPgn
 
             }
         }
+    }
 
-
-        // Draw the boards
+    private void RenderBoards(Graphics graphics, Brush transBrush, List<SortedList<string, (string, string, Image, string)>> moveLines, int shadowOffset = 0)
+    {
         for (int loopY = 0; loopY < moveLines.Count; loopY++)
         {
             KeyValuePair<string, (string, string, Image, string)>[] moveLine = moveLines[loopY].OrderBy(x => x.Key).ToArray();
@@ -472,26 +346,20 @@ public class DiagramPgn
                 {
                     try
                     {
-                        graphics.FillRectangle(transBrush,
-                                           (SpacerSizeX) + (loopX * BlockSizeX) + (SpacerSizeX / 2) + 5,
-                                           (loopY * BlockSizeY) + (SpacerSizeY / 2) + 5,
-                                           moveLine[loopX].Value.Item3.Width,
-                                           moveLine[loopX].Value.Item3.Height);
-                    }
-                    catch (Exception ex)
-                    {
-                        Console.WriteLine(ex.Message);
-                    }
-                }
-
-                //Draw Board
-                if (moveLine[loopX].Value.Item3 != null)
-                {
-                    try
-                    {
-                        graphics.DrawImage(moveLine[loopX].Value.Item3,
-                                           (SpacerSizeX) + (loopX * BlockSizeX) + (SpacerSizeX / 2),
-                                           (loopY * BlockSizeY) + (SpacerSizeY / 2));
+                        if (shadowOffset>0)
+                        {
+                            graphics.FillRectangle(transBrush,
+                                               (SpacerSizeX) + (loopX * BlockSizeX) + (SpacerSizeX / 2) + shadowOffset,
+                                               (loopY * BlockSizeY) + (SpacerSizeY / 2) + shadowOffset,
+                                               moveLine[loopX].Value.Item3.Width,
+                                               moveLine[loopX].Value.Item3.Height);
+                        }
+                        else
+                        {
+                            graphics.DrawImage(moveLine[loopX].Value.Item3,
+                                               (SpacerSizeX) + (loopX * BlockSizeX) + (SpacerSizeX / 2),
+                                               (loopY * BlockSizeY) + (SpacerSizeY / 2));
+                        }
                     }
                     catch (Exception ex)
                     {
@@ -500,8 +368,119 @@ public class DiagramPgn
                 }
             }
         }
+    }
 
-        return image;
+    private void RenderConnectors(Graphics graphics, List<SortedList<string, (string, string, Image, string)>> moveLines, Pen connectorPen, int shadowOffset = 0)
+    {
+        for (int loopY = 0; loopY < moveLines.Count; loopY++)
+        {
+            graphics.TextRenderingHint = TextRenderingHint.AntiAlias;
+            KeyValuePair<string, (string, string, Image, string)>[] moveLine = moveLines[loopY].OrderBy(x => x.Key).ToArray();
+
+            for (int loopX = 0; loopX < moveLine.Length; loopX++)
+            {
+                //Draw Connector
+                if (loopY + 1 < moveLines.Count)
+                {
+                    for (int loopNextRowX = 0; loopNextRowX < moveLines[loopY + 1].Count; loopNextRowX++)
+                    {
+                        if (moveLines[loopY + 1].Keys[loopNextRowX].Contains(moveLines[loopY].Keys[loopX], StringComparison.OrdinalIgnoreCase))
+                        {
+                            if (moveLines[loopY + 1].Values[loopNextRowX].Item3 != null)
+                            {
+                                graphics.DrawLine(connectorPen,
+                                                  shadowOffset + (SpacerSizeX) + (loopX * BlockSizeX) + (SpacerSizeX / 2) + (BoardSize / 2),
+                                                  (loopY * BlockSizeY) + (SpacerSizeY / 2) + (BoardSize),
+                                                  shadowOffset + (SpacerSizeX) + (loopX * BlockSizeX) + (SpacerSizeX / 2) + (BoardSize / 2),
+                                                  (loopY * BlockSizeY) + (SpacerSizeY / 2) + (BoardSize) + (SpacerSizeY / 2));
+
+                                graphics.DrawLine(connectorPen,
+                                                  shadowOffset + (SpacerSizeX) + (loopNextRowX * BlockSizeX) + (SpacerSizeX / 2) + (BoardSize / 2),
+                                                  shadowOffset + (loopY * BlockSizeY) + (SpacerSizeY / 2) + (BoardSize) + (SpacerSizeY / 2),
+                                                  shadowOffset + (SpacerSizeX) + (loopNextRowX * BlockSizeX) + (SpacerSizeX / 2) + (BoardSize / 2),
+                                                  shadowOffset + ((loopY + 1) * BlockSizeY) + (SpacerSizeY / 2));
+
+                                graphics.DrawLine(connectorPen,
+                                                  shadowOffset + (SpacerSizeX) + (loopX * BlockSizeX) + (SpacerSizeX / 2) + (BoardSize / 2),
+                                                  shadowOffset + (loopY * BlockSizeY) + (SpacerSizeY / 2) + (BoardSize) + (SpacerSizeY / 2),
+                                                  shadowOffset + (SpacerSizeX) + (loopNextRowX * BlockSizeX) + (SpacerSizeX / 2) + (BoardSize / 2),
+                                                  shadowOffset + ((loopY + 1) * BlockSizeY));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private void RenderPinstripes(Graphics graphics, List<SortedList<string, (string, string, Image, string)>> moveLines, SortedList<string, string> lastMoveNameList, Brush drawBrush, Font stripeFont, Size imageSize)
+    {
+        //Draw Pinstripes
+        int loopY = moveLines.Count - 1;
+
+        graphics.TextRenderingHint = TextRenderingHint.AntiAliasGridFit;
+        KeyValuePair<string, (string, string, Image, string)>[] moveLine = moveLines[loopY].OrderBy(x => x.Key).ToArray();
+
+
+        for (int loopX = 0; loopX < moveLine.Length; loopX++)
+        {
+            //Draw Srtipes   
+            if (lastMoveNameList.ContainsKey(moveLines[loopY].Keys[loopX]))
+            {
+                Console.WriteLine($">>>> {loopX,4} {loopY,4} {lastMoveNameList[moveLines[loopY].Keys[loopX]]}");
+
+                using StringFormat drawFormat = new() { FormatFlags = StringFormatFlags.DirectionVertical };
+                SizeF stringSize = graphics.MeasureString(lastMoveNameList[moveLines[loopY].Keys[loopX]], stripeFont);
+
+                for (float txtLoop = (SpacerSizeY / 2) + BlockSizeY; txtLoop < imageSize.Height; txtLoop += (stringSize.Width + 20))
+                {
+                    graphics.DrawString(lastMoveNameList[moveLines[loopY].Keys[loopX]],
+                                        stripeFont,
+                                        Brushes.Black,
+                                        ((SpacerSizeX) + ((loopX * BlockSizeX) + (SpacerSizeX / 2)) - StripeTxtOffset) + 1,
+                                        txtLoop + 1,
+                                        drawFormat);
+
+                    graphics.DrawString(lastMoveNameList[moveLines[loopY].Keys[loopX]],
+                                        stripeFont,
+                                        drawBrush,
+                                        (SpacerSizeX) + ((loopX * BlockSizeX) + (SpacerSizeX / 2)) - StripeTxtOffset,
+                                        txtLoop,
+                                        drawFormat);
+                }
+            }
+        }
+    }
+
+    private void RenderBackgroundStripes(Graphics graphics, Brush hStripeBrush, Size imageSize)
+    {
+        for (int loopY = BlockSizeY; loopY < imageSize.Height; loopY += (BlockSizeY * 2))
+        {
+            graphics.FillRectangle(hStripeBrush, new Rectangle(0, loopY, imageSize.Width, BlockSizeY));
+        }
+    }
+
+    private void RenderTitle(Graphics graphics, Brush titleBrush, string diagramTitle, float titleSize, int shadowOffset = 0)
+    {
+        graphics.DrawString(diagramTitle,
+                            new Font(FontFamily.GenericSansSerif, titleSize, FontStyle.Regular),
+                            titleBrush,
+                            BlockSizeX + SpacerSizeX + shadowOffset,
+                            SpacerSizeY + shadowOffset);
+    }
+
+    private static void RenderBackgroundFromStream(Graphics graphics, Size imageSize, Stream reader)
+    {
+        using Image bkgImage = Image.FromStream(reader);
+        ImageAttributes imageAttr = new();
+        imageAttr.SetWrapMode(WrapMode.Tile);
+
+        // Create a TextureBrush.
+        Rectangle brushRect = new(0, 0, bkgImage.Width, bkgImage.Height);
+        using TextureBrush myTBrush = new(bkgImage, brushRect, imageAttr);
+
+        // Draw to the screen a rectangle filled with the texture
+        graphics.FillRectangle(myTBrush, 0, 0, imageSize.Width, imageSize.Height);
     }
 }
 

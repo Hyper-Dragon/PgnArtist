@@ -9,7 +9,7 @@ public static class HelpersStatic
 
     public static void DisplayException(Exception ex)
     {
-        Console.ForegroundColor = ConsoleColor.Red;
+        Console.ForegroundColor = ConsoleColor.Yellow;
         Console.WriteLine($"Error :: Outer Type :: {ex.GetType()}");
         Console.WriteLine($"                    :: {ex.Message}");
         ex.StackTrace?.Split(Environment.NewLine).ToList<string>().ForEach((line) => { Console.WriteLine($"                    :: {line}"); });
