@@ -25,7 +25,10 @@ public class DiagramPgn
 
     private static async Task<IEnumerable<Game<MoveStorage>>> ParseAndValidatePgn(string preParsedPgn)
     {
-        return await (new PGNParser()).GetGamesFromPGNAsync(preParsedPgn.ToString(CultureInfo.InvariantCulture));
+        PGNParser parser = new();
+        var retVal =  await parser.GetGamesFromPGNAsync(preParsedPgn.ToString(CultureInfo.InvariantCulture));
+
+        return retVal;
     }
 
     [SupportedOSPlatform("windows")]
@@ -47,7 +50,7 @@ public class DiagramPgn
             throw new NullReferenceException("Call 'LoadPgn' and then 'BuildMoveData' BEFORE trying to generate any diagrams.");
         }
 
-        return await Task.Run<Bitmap>(() => new DiagramRenderer().RenderMoveImageData(_moveData.LastMoveNameList, _moveData.MoveLines, diagramTitle, titleSize));
+        return await Task.Run<Bitmap>(() => new DiagramRenderer().RenderMoveImageData( _moveData, diagramTitle, titleSize));
     }
 
 

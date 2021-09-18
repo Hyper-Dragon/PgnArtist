@@ -18,7 +18,7 @@ internal class DiagramRenderer
     public int BoardShadowOffset { get; set; } = 8;
 
 
-    public Bitmap RenderMoveImageData(SortedList<string, string> lastMoveNameList, List<SortedList<string, MoveLine>> moveLines, string diagramTitle, float titleSize)
+    public Bitmap RenderMoveImageData(RenderableGame moveLines, string diagramTitle, float titleSize)
     {
         // Create font/brush/pen.
         using Font headFont = new(FontFamily.GenericSansSerif, HeadFontSize);
@@ -30,7 +30,7 @@ internal class DiagramRenderer
         using Pen connectorShadowPen = new(new SolidBrush(Color.FromArgb(200, 0, 0, 0))) { Width = ConnectSize };
         using Pen connectorPen = new(Brushes.Orange) { Width = ConnectSize };
 
-        CreateDrawingSurface(moveLines, out Bitmap image, out Graphics graphics);
+        CreateDrawingSurface(moveLines.MoveLines.MoveLines, out Bitmap image, out Graphics graphics);
 
         RenderBackgroundFromStream(graphics,
                                    image.Size,
@@ -39,18 +39,18 @@ internal class DiagramRenderer
         RenderTitle(graphics, transBrush, diagramTitle, titleSize, shadowOffset: BoardShadowOffset);
         RenderTitle(graphics, Brushes.White, diagramTitle, titleSize);
         RenderBackgroundStripes(graphics, bkgStripeBrush, image.Size);
-        RenderPinstripes(graphics, moveLines, lastMoveNameList, drawBrush, stripeFont, image.Size);
-        RenderBoards(graphics, moveLines, transBrush, shadowOffset: BoardShadowOffset);
-        RenderMoveText(graphics, moveLines, headFont, transBrush, shadowOffset: BoardShadowOffset);
-        RenderConnectors(graphics, moveLines, connectorShadowPen, shadowOffset: BoardShadowOffset);
-        RenderConnectors(graphics, moveLines, connectorPen);
-        RenderMoveText(graphics, moveLines, headFont, moveBkgBrush, textBrush: drawBrush);
-        RenderBoards(graphics, moveLines, transBrush);
+        RenderPinstripes(graphics, moveLines, drawBrush, stripeFont, image.Size);
+        RenderBoards(graphics, moveLines.MoveLines.MoveLines, transBrush, shadowOffset: BoardShadowOffset);
+        RenderMoveText(graphics, moveLines.MoveLines.MoveLines, headFont, transBrush, shadowOffset: BoardShadowOffset);
+        RenderConnectors(graphics, moveLines.MoveLines.MoveLines, connectorShadowPen, shadowOffset: BoardShadowOffset);
+        RenderConnectors(graphics, moveLines.MoveLines.MoveLines, connectorPen);
+        RenderMoveText(graphics, moveLines.MoveLines.MoveLines, headFont, moveBkgBrush, textBrush: drawBrush);
+        RenderBoards(graphics, moveLines.MoveLines.MoveLines, transBrush);
 
         return image;
     }
 
-    private void CreateDrawingSurface(List<SortedList<string, MoveLine>> moveLines, out Bitmap image, out Graphics graphics)
+    private void CreateDrawingSurface(List<SortedList<string, RenderableGameMove>> moveLines, out Bitmap image, out Graphics graphics)
     {
         image = new(((moveLines.Max(item => item.Count)) * BlockSizeX) + SpacerSizeX + (SpacerSizeX / 2),
                     (moveLines.Count * BlockSizeY) + (SpacerSizeY / 4),
@@ -65,7 +65,7 @@ internal class DiagramRenderer
         graphics.Clear(Color.Black);
     }
 
-    private void RenderMoveText(Graphics graphics, List<SortedList<string, MoveLine>> moveLines, Font headFont, Brush moveBkgBrush, int shadowOffset = 0, Brush? textBrush = null)
+    private void RenderMoveText(Graphics graphics, List<SortedList<string, RenderableGameMove>> moveLines, Font headFont, Brush moveBkgBrush, int shadowOffset = 0, Brush? textBrush = null)
     {
         if (textBrush is null && shadowOffset == 0)
         {
@@ -74,7 +74,7 @@ internal class DiagramRenderer
 
         for (int loopY = 0; loopY < moveLines.Count; loopY++)
         {
-            KeyValuePair<string, MoveLine>[] moveLine = moveLines[loopY].OrderBy(x => x.Key).ToArray();
+            KeyValuePair<string, RenderableGameMove>[] moveLine = moveLines[loopY].OrderBy(x => x.Key).ToArray();
 
             for (int loopX = 0; loopX < moveLine.Length; loopX++)
             {
@@ -119,11 +119,11 @@ internal class DiagramRenderer
         }
     }
 
-    private void RenderBoards(Graphics graphics, List<SortedList<string, MoveLine>> moveLines, Brush transBrush, int shadowOffset = 0)
+    private void RenderBoards(Graphics graphics, List<SortedList<string, RenderableGameMove>> moveLines, Brush transBrush, int shadowOffset = 0)
     {
         for (int loopY = 0; loopY < moveLines.Count; loopY++)
         {
-            KeyValuePair<string, MoveLine>[] moveLine = moveLines[loopY].OrderBy(x => x.Key).ToArray();
+            KeyValuePair<string, RenderableGameMove>[] moveLine = moveLines[loopY].OrderBy(x => x.Key).ToArray();
 
             for (int loopX = 0; loopX < moveLine.Length; loopX++)
             {
@@ -156,13 +156,13 @@ internal class DiagramRenderer
         }
     }
 
-    private void RenderConnectors(Graphics graphics, List<SortedList<string, MoveLine>> moveLines, Pen connectorPen, int shadowOffset = 0)
+    private void RenderConnectors(Graphics graphics, List<SortedList<string, RenderableGameMove>> moveLines, Pen connectorPen, int shadowOffset = 0)
     {
         graphics.TextRenderingHint = TextRenderingHint.AntiAlias;
 
         for (int loopY = 0; loopY < moveLines.Count; loopY++)
         {
-            KeyValuePair<string, MoveLine>[] moveLine = moveLines[loopY].OrderBy(x => x.Key).ToArray();
+            KeyValuePair<string, RenderableGameMove>[] moveLine = moveLines[loopY].OrderBy(x => x.Key).ToArray();
 
             for (int loopX = 0; loopX < moveLine.Length; loopX++)
             {
@@ -200,40 +200,50 @@ internal class DiagramRenderer
         }
     }
 
-    private void RenderPinstripes(Graphics graphics, List<SortedList<string, MoveLine>> moveLines, SortedList<string, string> lastMoveNameList, Brush drawBrush, Font stripeFont, Size imageSize)
+    private void RenderPinstripes(Graphics graphics, RenderableGame renderableGame, Brush drawBrush, Font stripeFont, Size imageSize)
     {
+
+        var moveLines = renderableGame.MoveLines.MoveLines;
+        var lastMoveNameList = renderableGame.MoveLines.TextForKey;
         //Draw Pinstripes
-        int loopY = moveLines.Count - 1;
+        //int loopY = moveLines.Count - 1;
 
         graphics.TextRenderingHint = TextRenderingHint.AntiAliasGridFit;
-        KeyValuePair<string, MoveLine>[] moveLine = moveLines[loopY].OrderBy(x => x.Key).ToArray();
 
 
-        for (int loopX = 0; loopX < moveLine.Length; loopX++)
+        for (int loopY = 0; loopY < moveLines.Count; loopY++)
         {
-            //Draw Srtipes   
-            if (lastMoveNameList.ContainsKey(moveLines[loopY].Keys[loopX]))
+
+
+            KeyValuePair<string, RenderableGameMove>[] moveLine = moveLines[loopY].OrderBy(x => x.Key).ToArray();
+
+
+            for (int loopX = 0; loopX < moveLine.Length; loopX++)
             {
-                Console.WriteLine($">>>> {loopX,4} {loopY,4} {lastMoveNameList[moveLines[loopY].Keys[loopX]]}");
-
-                using StringFormat drawFormat = new() { FormatFlags = StringFormatFlags.DirectionVertical };
-                SizeF stringSize = graphics.MeasureString(lastMoveNameList[moveLines[loopY].Keys[loopX]], stripeFont);
-
-                for (float txtLoop = (SpacerSizeY / 2) + BlockSizeY; txtLoop < imageSize.Height; txtLoop += (stringSize.Width + 20))
+                //Draw Srtipes   
+                if (lastMoveNameList.ContainsKey(moveLines[loopY].Keys[loopX]))
                 {
-                    graphics.DrawString(lastMoveNameList[moveLines[loopY].Keys[loopX]],
-                                        stripeFont,
-                                        Brushes.Black,
-                                        ((SpacerSizeX) + ((loopX * BlockSizeX) + (SpacerSizeX / 2)) - StripeTxtOffset) + 1,
-                                        txtLoop + 1,
-                                        drawFormat);
+                    Console.WriteLine($">>>> {loopX,4} {loopY,4} {lastMoveNameList[moveLines[loopY].Keys[loopX]]}");
 
-                    graphics.DrawString(lastMoveNameList[moveLines[loopY].Keys[loopX]],
-                                        stripeFont,
-                                        drawBrush,
-                                        (SpacerSizeX) + ((loopX * BlockSizeX) + (SpacerSizeX / 2)) - StripeTxtOffset,
-                                        txtLoop,
-                                        drawFormat);
+                    using StringFormat drawFormat = new() { FormatFlags = StringFormatFlags.DirectionVertical };
+                    SizeF stringSize = graphics.MeasureString(lastMoveNameList[moveLines[loopY].Keys[loopX]], stripeFont);
+
+                    for (float txtLoop = (SpacerSizeY / 2) + BlockSizeY; txtLoop < imageSize.Height; txtLoop += (stringSize.Width + 20))
+                    {
+                        graphics.DrawString(lastMoveNameList[moveLines[loopY].Keys[loopX]],
+                                            stripeFont,
+                                            Brushes.Black,
+                                            ((SpacerSizeX) + ((loopX * BlockSizeX) + (SpacerSizeX / 2)) - StripeTxtOffset) + 1,
+                                            txtLoop + 1,
+                                            drawFormat);
+
+                        graphics.DrawString(lastMoveNameList[moveLines[loopY].Keys[loopX]],
+                                            stripeFont,
+                                            drawBrush,
+                                            (SpacerSizeX) + ((loopX * BlockSizeX) + (SpacerSizeX / 2)) - StripeTxtOffset,
+                                            txtLoop,
+                                            drawFormat);
+                    }
                 }
             }
         }

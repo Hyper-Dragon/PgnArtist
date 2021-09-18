@@ -9,8 +9,11 @@ internal class ProcessParsedPgn
         List<Game<MoveStorage>> filteredGames = new();
 
         //Filter the game list
-        foreach (Game<MoveStorage> game in moveImageData.ParsedGames)
+        foreach (Game<MoveStorage> game in moveImageData.ParsedGames )
         {
+            Console.WriteLine($"::{game.TagSection["Opening"]}");
+
+
             bool isIncluded = true;
 
             if (!string.IsNullOrEmpty(moveImageData.Filter.FilterWhite) &&
@@ -45,8 +48,9 @@ internal class ProcessParsedPgn
     internal static async Task ProcessGame(bool isFromWhitesPerspective,
                                           int maxWidth,
                                           Game<MoveStorage> game,
-                                          GameFilter gameFilter,
-                                          List<SortedList<string, MoveLine>> moveLines)
+                                          GameFilter gameFilter, 
+                                          Dictionary<string, string> lastMoveDict,
+                                          List<SortedList<string, RenderableGameMove>> moveLines)
     {
         string moveKey = BOARD_FEN;
         string lastGameKey = BOARD_FEN;
@@ -61,11 +65,11 @@ internal class ProcessParsedPgn
             string gameKey = $"{game.CurrentFEN.Split(" ")[0]}";
             moveKey += gameKey;
 
-            if (moveLines.Count <= ++moveCount) { moveLines.Add(new SortedList<string, MoveLine>()); }
+            if (moveLines.Count <= ++moveCount) { moveLines.Add(new SortedList<string, RenderableGameMove>()); }
 
             if (!moveLines[moveCount].ContainsKey($"{moveKey}"))
             {
-                moveLines[moveCount].Add($"{moveKey}", new MoveLine() { San = game.CurrentMoveNode.Value.SAN, LastBoardFen = lastGameKey, BoardFen = $"{gameKey}", BoardImage = null, Comment = game.CurrentMoveNode.Value.Comment });
+                moveLines[moveCount].Add($"{moveKey}", new RenderableGameMove() { San = game.CurrentMoveNode.Value.SAN, LastBoardFen = lastGameKey, BoardFen = $"{gameKey}", BoardImage = null, Comment = game.CurrentMoveNode.Value.Comment });
             }
 
             if (moveCount + 1 < moveLines.Count)
@@ -75,12 +79,34 @@ internal class ProcessParsedPgn
                 {
                     try
                     {
-                        moveLines[moveCount].Add($"{moveKey}{addedCount}", new MoveLine { San = "", BoardImage = null, BoardFen = "", Comment = "" });
+                        moveLines[moveCount].Add($"{moveKey}{addedCount}", new RenderableGameMove { San = "", BoardImage = null, BoardFen = "", Comment = "" });
                     }
                     catch (Exception)
                     {
                         Console.WriteLine($"ERROR {addedCount}");
                     }
+                }
+            }
+
+
+            if (!game.HasNextMove)
+            {
+                if (game.TagSection.ContainsKey("Opening"))
+                {
+                    Console.WriteLine($"FOUND: {game.TagSection["Opening"]}");
+
+                    if (lastMoveDict.ContainsKey(moveKey))
+                    {
+                        lastMoveDict[moveKey] += $"** OR ** {game.TagSection["Opening"]}";
+                    }
+                    else
+                    {
+                        lastMoveDict.Add(moveKey, game.TagSection["Opening"]);
+                    }
+                }
+                else
+                {
+                    Console.WriteLine($"KEY MISSING");
                 }
             }
         }
@@ -107,7 +133,7 @@ internal class ProcessParsedPgn
         GameLine moveLines = new();
 
         moveLines.MoveLines.Add(new());
-        moveLines.MoveLines[0].Add(BOARD_FEN, new MoveLine() { BoardFen = BOARD_FEN, BoardImage = null, San = "", Comment = "" });
+        moveLines.MoveLines[0].Add(BOARD_FEN, new RenderableGameMove() { BoardFen = BOARD_FEN, BoardImage = null, San = "", Comment = "" });
 
         List<Game<MoveStorage>> filteredGames = GetFilteredGameList(moveImageData);
 
@@ -124,28 +150,12 @@ internal class ProcessParsedPgn
                               filteredGames.TakeLast(moveImageData.Filter.MaxGames) :
                               filteredGames.Take(moveImageData.Filter.MaxGames))
         {
-            await ProcessGame(moveImageData.IsFromWhitesPerspective, maxWidth, game, moveImageData.Filter, moveLines.MoveLines);
-
-
-            if (game.TagSection.ContainsKey("Opening"))
-            {
-                Console.WriteLine($"FOUND: {game.TagSection["Opening"]}");
-                moveLines.GameLineTitle = game.TagSection["Opening"];
-
-                //if (!lastMoveNameList.ContainsKey(moveLines.MoveLines.Last().Last().Key))
-                //{
-                //    lastMoveNameList.Add(moveLines.MoveLines.Last().Last().Key, game.TagSection["Opening"]);
-                //    Console.WriteLine($"FOUND: {game.TagSection["Opening"]}");
-                //}
-            }
-            else if (!game.HasNextMove)
-            {
-                try
-                {
-                    lastMoveNameList.Add(moveLines.MoveLines.Last().Last().Key, $"[{game.TagSection["White"]} vs {game.TagSection["Black"]} >> { game.TagSection["Termination"] }]");
-                }
-                catch (Exception) { Console.WriteLine("I know - fix me"); }
-            }
+            await ProcessGame(moveImageData.IsFromWhitesPerspective,
+                              maxWidth,
+                              game,
+                              moveImageData.Filter,
+                              moveLines.TextForKey,
+                              moveLines.MoveLines);
         }
 
 
@@ -177,7 +187,7 @@ internal class ProcessParsedPgn
                     {
                         for (int loopInnerY = loopY + 1; loopInnerY < moveLines.MoveLines.Count; loopInnerY++)
                         {
-                            moveLines.MoveLines[loopInnerY].Add($"{moveLines.MoveLines[loopY].Keys[loopX]}{addedCount}", new MoveLine { San = "", BoardImage = null, BoardFen = "", Comment = "" });
+                            moveLines.MoveLines[loopInnerY].Add($"{moveLines.MoveLines[loopY].Keys[loopX]}{addedCount}", new RenderableGameMove { San = "", BoardImage = null, BoardFen = "", Comment = "" });
                         }
                     }
                 }
@@ -186,6 +196,6 @@ internal class ProcessParsedPgn
             maxWidth = Math.Max(maxWidth, moveLines.MoveLines[loopY].Count);
         }
 
-        return new RenderableGame() { LastMoveNameList = lastMoveNameList, MoveLines = moveLines.MoveLines, MaxWidth = maxWidth };
+        return new RenderableGame() { MoveLines = moveLines, MaxWidth = maxWidth };
     }
 }

@@ -4,13 +4,13 @@
 
 public record GameLine
 {
-    public string GameLineTitle { get; set; }  = "";
-    public List<SortedList<string, MoveLine>> MoveLines { get; } = new();
+    public Dictionary<string,string> TextForKey { get; }  = new();
+    public List<SortedList<string, RenderableGameMove>> MoveLines { get; } = new();
 }
 
 
 
-public record class MoveLine
+public record class RenderableGameMove
 {
     public string San { get; set; } = "";
     public string LastBoardFen { get; set; } = "";
@@ -30,8 +30,8 @@ public class MoveImageData
 
 public class RenderableGame
 {
-    public SortedList<string, string> LastMoveNameList { get; set; } = new();
-    public List<SortedList<string, MoveLine>> MoveLines { get; set; } = new();
+    //public SortedList<string, string> LastMoveNameList { get; set; } = new();
+    public GameLine MoveLines { get; set; } = new();
 
     public int MaxWidth { get; set; } = 0;
 
