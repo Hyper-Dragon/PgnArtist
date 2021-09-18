@@ -1,11 +1,12 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+﻿using DynamicBoard;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
-namespace DynamicBoard.Tests;
+namespace DynamicBoardTest;
 
 [TestClass()]
 public class ChessDotComBoardRendererTests
