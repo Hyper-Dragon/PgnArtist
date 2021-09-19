@@ -5,6 +5,9 @@ internal class DiagramRenderer
 {
 
     public const int SQUARE_SIZE = 160;
+    private const int PINSTRIPE_SPACE = 20;
+    private const string DEFAULT_BACKGROUND = "DefaultBkg01.png";
+
     public int BoxWidth { get; set; } = 62;
     public int BoxHeight { get; set; } = 14;
     public float HeadFontSize { get; set; } = 9f;
@@ -14,7 +17,6 @@ internal class DiagramRenderer
     public float ConnectSize { get; set; } = 3.0f;
     public int BlockSizeX => SQUARE_SIZE + SpacerSizeX;
     public int BlockSizeY => SQUARE_SIZE + SpacerSizeY;
-
     public int BoardShadowOffset { get; set; } = 8;
 
 
@@ -34,7 +36,7 @@ internal class DiagramRenderer
 
         RenderBackgroundFromStream(graphics,
                                    image.Size,
-                                   (new EmbeddedFileProvider(typeof(DiagramPgn).Assembly)).GetFileInfo("DefaultBkg01.png").CreateReadStream());
+                                   (new EmbeddedFileProvider(typeof(DiagramPgn).Assembly)).GetFileInfo(DEFAULT_BACKGROUND).CreateReadStream());
 
         RenderTitle(graphics, transBrush, diagramTitle, titleSize, shadowOffset: BoardShadowOffset);
         RenderTitle(graphics, Brushes.White, diagramTitle, titleSize);
@@ -202,7 +204,6 @@ internal class DiagramRenderer
 
     private void RenderPinstripes(Graphics graphics, RenderableGame renderableGame, Brush drawBrush, Font stripeFont, Size imageSize)
     {
-
         var moveLines = renderableGame.MoveLines.MoveLines;
         var lastMoveNameList = renderableGame.MoveLines.TextForKey;
         //Draw Pinstripes
@@ -213,10 +214,7 @@ internal class DiagramRenderer
 
         for (int loopY = 0; loopY < moveLines.Count; loopY++)
         {
-
-
             KeyValuePair<string, RenderableGameMove>[] moveLine = moveLines[loopY].OrderBy(x => x.Key).ToArray();
-
 
             for (int loopX = 0; loopX < moveLine.Length; loopX++)
             {
@@ -228,7 +226,7 @@ internal class DiagramRenderer
                     using StringFormat drawFormat = new() { FormatFlags = StringFormatFlags.DirectionVertical };
                     SizeF stringSize = graphics.MeasureString(lastMoveNameList[moveLines[loopY].Keys[loopX]], stripeFont);
 
-                    for (float txtLoop = (SpacerSizeY / 2) + BlockSizeY; txtLoop < imageSize.Height; txtLoop += (stringSize.Width + 20))
+                    for (float txtLoop = (SpacerSizeY / 2) + BlockSizeY; txtLoop < imageSize.Height; txtLoop += stringSize.Width + PINSTRIPE_SPACE)
                     {
                         graphics.DrawString(lastMoveNameList[moveLines[loopY].Keys[loopX]],
                                             stripeFont,
@@ -280,4 +278,3 @@ internal class DiagramRenderer
         graphics.FillRectangle(myTBrush, 0, 0, imageSize.Width, imageSize.Height);
     }
 }
-

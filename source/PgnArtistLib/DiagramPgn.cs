@@ -8,25 +8,25 @@ public class DiagramPgn
     public string SubmittedPgn => _submittedPgn ?? "";
 
 
-    public async Task<bool> AssignPgn(string pgnText)
+    public async Task<bool> AssignPgn(string pgnText, GameFilter gameFilter)
     {
-        _parsedGames = await ParseAndValidatePgn(pgnText).ConfigureAwait(false);
+        _parsedGames = await ParseAndValidatePgn(pgnText, gameFilter.MaxPly).ConfigureAwait(false);
         _submittedPgn = pgnText;
         return true;
     }
 
-    public async Task<bool> AssignPgn(FileInfo pgnFileInfo)
+    public async Task<bool> AssignPgn(FileInfo pgnFileInfo, GameFilter gameFilter)
     {
         string preParsedPgn = File.ReadAllText(pgnFileInfo.FullName);
-        _parsedGames = await ParseAndValidatePgn(preParsedPgn).ConfigureAwait(false);
+        _parsedGames = await ParseAndValidatePgn(preParsedPgn, gameFilter.MaxPly).ConfigureAwait(false);
         _submittedPgn = preParsedPgn;
         return true;
     }
 
-    private static async Task<IEnumerable<Game<MoveStorage>>> ParseAndValidatePgn(string preParsedPgn)
+    private static async Task<IEnumerable<Game<MoveStorage>>> ParseAndValidatePgn(string preParsedPgn, int maxPly)
     {
-        PGNParser parser = new();
-        var retVal =  await parser.GetGamesFromPGNAsync(preParsedPgn.ToString(CultureInfo.InvariantCulture));
+        PGNParser parser = new(new PGNParserOptions(maxPlyCountPerGame: maxPly, ignoreVariations: true));
+        var retVal = await parser.GetGamesFromPGNAsync(preParsedPgn.ToString(CultureInfo.InvariantCulture));
 
         return retVal;
     }
@@ -39,7 +39,12 @@ public class DiagramPgn
             throw new NullReferenceException("Call 'LoadPgn' BEFORE trying to generate any diagrams.");
         }
 
-        _moveData = await ProcessParsedPgn.BuildMoveImageData(new MoveImageData() { ParsedGames = _parsedGames, Filter = filter, IsFromWhitesPerspective = isFromWhitesPerspective });
+        _moveData = await ProcessParsedPgn.BuildMoveImageData(new MoveImageData()
+        {
+            ParsedGames = _parsedGames,
+            Filter = filter,
+            IsFromWhitesPerspective = isFromWhitesPerspective
+        });
     }
 
     [SupportedOSPlatform("windows")]
@@ -50,21 +55,7 @@ public class DiagramPgn
             throw new NullReferenceException("Call 'LoadPgn' and then 'BuildMoveData' BEFORE trying to generate any diagrams.");
         }
 
-        return await Task.Run<Bitmap>(() => new DiagramRenderer().RenderMoveImageData( _moveData, diagramTitle, titleSize));
+        return await Task.Run<Bitmap>(() => new DiagramRenderer().RenderMoveImageData(_moveData, diagramTitle, titleSize));
     }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 }

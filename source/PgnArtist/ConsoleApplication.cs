@@ -7,10 +7,12 @@ namespace PgnArtist;
 public sealed class ConsoleApplication : ConsoleApplicationBase
 {
     private readonly DiagramPgn _diagramPgn;
+    private readonly GameFilter _filter;
 
-    public ConsoleApplication(Parser parser, Header customProcessor, GlobalSettings globalSettings, Helpers helpers, DiagramPgn diagramPgn) : base(parser, customProcessor, globalSettings, helpers)
+    public ConsoleApplication(Parser parser, Header customProcessor, GlobalSettings globalSettings, Helpers helpers, DiagramPgn diagramPgn, GameFilter filter) : base(parser, customProcessor, globalSettings, helpers)
     {
         _diagramPgn = diagramPgn;
+        _filter = filter;
     }
 
     protected override async Task<bool> PreRunImplAsync(CommandLineOptions cmdLineOpts)
@@ -46,8 +48,22 @@ public sealed class ConsoleApplication : ConsoleApplicationBase
             return false;
         }
 
+
+
+
+        _filter.MaxGames        = cmdLineOpts.MaxGames;
+        _filter.MaxPly                = cmdLineOpts.MaxPly;
+        _filter.TakeGamesFromEnd      = cmdLineOpts.TakeGamesFromEnd;
+        _filter.FilterBlack           = cmdLineOpts.FilterBlack;
+        _filter.FilterWhite           = cmdLineOpts.FilterWhite;
+        _filter.FilterEither          = cmdLineOpts.FilterEither;
+        _filter.FilterECO             = cmdLineOpts.FilterECO;
+        _filter.FilterOpeningContains = cmdLineOpts.FilterOpeningContains;
+        
+
+
         _helpers.StartTimedSection($">> Processing PGN {cmdLineOpts.PgnFilePath}");
-        _ = await _diagramPgn.AssignPgn(cmdLineOpts.PgnFilePath);
+        _ = await _diagramPgn.AssignPgn(cmdLineOpts.PgnFilePath, _filter);
         _helpers.EndTimedSection(">> PGN Processing Done");
 
         if (cmdLineOpts.DisplayPgn)
@@ -62,21 +78,8 @@ public sealed class ConsoleApplication : ConsoleApplicationBase
 
     protected override async Task<int> RunImplAsync(CommandLineOptions cmdOpts)
     {
-        GameFilter? filter = new()
-        {
-            MaxGames = cmdOpts.MaxGames,
-            MaxPly = cmdOpts.MaxPly,
-            TakeGamesFromEnd = cmdOpts.TakeGamesFromEnd,
-            FilterBlack = cmdOpts.FilterBlack,
-            FilterWhite = cmdOpts.FilterWhite,
-            FilterEither = cmdOpts.FilterEither,
-            FilterECO = cmdOpts.FilterECO,
-            FilterOpeningContains = cmdOpts.FilterOpeningContains
-        };
-
-
         _helpers.StartTimedSection(">> Processing Move Data");
-        await _diagramPgn.BuildMoveData(!cmdOpts.FlipBoard, filter);
+        await _diagramPgn.BuildMoveData(!cmdOpts.FlipBoard, _filter);
         _helpers.EndTimedSection(">> Processing Complete");
 
         _helpers.StartTimedSection(">> Generating Diagram");

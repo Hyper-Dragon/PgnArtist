@@ -9,7 +9,7 @@ internal class ProcessParsedPgn
         List<Game<MoveStorage>> filteredGames = new();
 
         //Filter the game list
-        foreach (Game<MoveStorage> game in moveImageData.ParsedGames )
+        foreach (Game<MoveStorage> game in moveImageData.ParsedGames)
         {
             Console.WriteLine($"::{game.TagSection["Opening"]}");
 
@@ -48,70 +48,74 @@ internal class ProcessParsedPgn
     internal static async Task ProcessGame(bool isFromWhitesPerspective,
                                           int maxWidth,
                                           Game<MoveStorage> game,
-                                          GameFilter gameFilter, 
+                                          GameFilter gameFilter,
                                           Dictionary<string, string> lastMoveDict,
                                           List<SortedList<string, RenderableGameMove>> moveLines)
     {
-        string moveKey = BOARD_FEN;
-        string lastGameKey = BOARD_FEN;
-        int moveCount = 0;
-        int plyCount = 0;
 
-        while (game.HasNextMove && (plyCount++) < gameFilter.MaxPly)
+        await Task.Run(() =>
         {
-            lastGameKey = $"{game.CurrentFEN.Split(" ")[0]}";
-            game.TraverseForward();
+            string moveKey = BOARD_FEN;
+            string lastGameKey = BOARD_FEN;
+            int moveCount = 0;
 
-            string gameKey = $"{game.CurrentFEN.Split(" ")[0]}";
-            moveKey += gameKey;
-
-            if (moveLines.Count <= ++moveCount) { moveLines.Add(new SortedList<string, RenderableGameMove>()); }
-
-            if (!moveLines[moveCount].ContainsKey($"{moveKey}"))
+            while (game.HasNextMove)
             {
-                moveLines[moveCount].Add($"{moveKey}", new RenderableGameMove() { San = game.CurrentMoveNode.Value.SAN, LastBoardFen = lastGameKey, BoardFen = $"{gameKey}", BoardImage = null, Comment = game.CurrentMoveNode.Value.Comment });
-            }
+                lastGameKey = $"{game.CurrentFEN.Split(" ")[0]}";
+                game.TraverseForward();
 
-            if (moveCount + 1 < moveLines.Count)
-            {
-                int addedCount = moveLines[moveCount + 1].Where(x => x.Key.StartsWith(moveKey, StringComparison.OrdinalIgnoreCase)).Count();
-                if (addedCount >= 1)
+                string gameKey = $"{game.CurrentFEN.Split(" ")[0]}";
+                moveKey += gameKey;
+
+                if (moveLines.Count <= ++moveCount) moveLines.Add(new SortedList<string, RenderableGameMove>()); 
+
+                if (!moveLines[moveCount].ContainsKey($"{moveKey}"))
                 {
-                    try
+                    moveLines[moveCount].Add($"{moveKey}", new RenderableGameMove() { San = game.CurrentMoveNode.Value.SAN, LastBoardFen = lastGameKey, BoardFen = $"{gameKey}", BoardImage = null, Comment = game.CurrentMoveNode.Value.Comment });
+                }
+                else if (moveCount + 1 < moveLines.Count)
+                {
+                    int addedCount = moveLines[moveCount+1].Where(x => x.Key.StartsWith(moveKey, StringComparison.OrdinalIgnoreCase)).Count();
+                    
+                    if (addedCount >= 1)
                     {
-                        moveLines[moveCount].Add($"{moveKey}{addedCount}", new RenderableGameMove { San = "", BoardImage = null, BoardFen = "", Comment = "" });
-                    }
-                    catch (Exception)
-                    {
-                        Console.WriteLine($"ERROR {addedCount}");
+                        try
+                        {
+                            moveLines[moveCount].Add($"{moveKey}{addedCount}", new RenderableGameMove { San = "", BoardImage = null, BoardFen = "", Comment = "" });
+                        }
+                        catch (Exception ex)
+                        {
+                            Console.WriteLine($"ERROR {addedCount} {ex.Message}");
+                        }
                     }
                 }
-            }
 
 
-            if (!game.HasNextMove)
-            {
-                if (game.TagSection.ContainsKey("Opening"))
+                if (!game.HasNextMove)
                 {
-                    Console.WriteLine($"FOUND: {game.TagSection["Opening"]}");
-
-                    if (lastMoveDict.ContainsKey(moveKey))
+                    if (game.TagSection.ContainsKey("Opening"))
                     {
-                        lastMoveDict[moveKey] += $"** OR ** {game.TagSection["Opening"]}";
+                        Console.WriteLine($"FOUND: {game.TagSection["Opening"]}");
+
+                        if (lastMoveDict.ContainsKey(moveKey))
+                        {
+                            lastMoveDict[moveKey] += $"** OR ** {game.TagSection["Opening"]}";
+                        }
+                        else
+                        {
+                            lastMoveDict.Add(moveKey, game.TagSection["Opening"]);
+                        }
                     }
                     else
                     {
-                        lastMoveDict.Add(moveKey, game.TagSection["Opening"]);
+                        Console.WriteLine($"KEY MISSING");
                     }
                 }
-                else
-                {
-                    Console.WriteLine($"KEY MISSING");
-                }
             }
-        }
 
-        game.GoToInitialState();
+            game.GoToInitialState();
+
+        });
     }
 
 
@@ -120,22 +124,14 @@ internal class ProcessParsedPgn
     {
         IBoardRenderer boardRenderer = new ShadowBoardRenderer(logger: null);
 
-        //Render initial position
-        //IBoardRenderer boardRenderer = new ShadowBoardRenderer(logger: null);
-        //using MemoryStream memStream = new(await boardRenderer.GetPngImageFromFenAsync(BOARD_FEN, DiagramRenderer.SQUARE_SIZE, moveImageData.IsFromWhitesPerspective).ConfigureAwait(false));
-        //Bitmap startBoardresizedBmp = (Bitmap)Bitmap.FromStream(memStream);
-
-
-
         int maxWidth = 0;
-        SortedList<string, string> lastMoveNameList = new();
 
+        SortedList<string, string> lastMoveNameList = new();
         GameLine moveLines = new();
 
         moveLines.MoveLines.Add(new());
         moveLines.MoveLines[0].Add(BOARD_FEN, new RenderableGameMove() { BoardFen = BOARD_FEN, BoardImage = null, San = "", Comment = "" });
 
-        List<Game<MoveStorage>> filteredGames = GetFilteredGameList(moveImageData);
 
 
         //Parallel.ForEach(
@@ -147,8 +143,8 @@ internal class ProcessParsedPgn
 
 
         foreach (var game in (moveImageData.Filter.TakeGamesFromEnd) ?
-                              filteredGames.TakeLast(moveImageData.Filter.MaxGames) :
-                              filteredGames.Take(moveImageData.Filter.MaxGames))
+                              GetFilteredGameList(moveImageData).TakeLast(moveImageData.Filter.MaxGames) :
+                              GetFilteredGameList(moveImageData).Take(moveImageData.Filter.MaxGames))
         {
             await ProcessGame(moveImageData.IsFromWhitesPerspective,
                               maxWidth,

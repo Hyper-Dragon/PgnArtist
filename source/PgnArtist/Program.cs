@@ -10,6 +10,7 @@ public sealed class Program
         ServiceCollection? services = new();
         services.AddLogging();
         services.AddSingleton(typeof(DiagramPgn));
+        services.AddTransient(typeof(GameFilter));
         services.AddSingleton<Parser>(new Parser((settings) =>
         {
             settings.AllowMultiInstance = true;
