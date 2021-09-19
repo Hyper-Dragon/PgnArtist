@@ -79,7 +79,7 @@ public sealed class ConsoleApplication : ConsoleApplicationBase
     protected override async Task<int> RunImplAsync(CommandLineOptions cmdOpts)
     {
         _helpers.StartTimedSection(">> Processing Move Data");
-        await _diagramPgn.BuildMoveData(!cmdOpts.FlipBoard, _filter);
+        await _diagramPgn.BuildMoveData(!cmdOpts.FlipBoard, _filter, cmdOpts.InitialFen);
         _helpers.EndTimedSection(">> Processing Complete");
 
         _helpers.StartTimedSection(">> Generating Diagram");

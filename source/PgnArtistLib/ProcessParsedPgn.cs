@@ -2,8 +2,6 @@
 
 internal class ProcessParsedPgn
 {
-    private const string BOARD_FEN = @"rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR";
-
     internal static List<Game<MoveStorage>> GetFilteredGameList(MoveImageData moveImageData)
     {
         List<Game<MoveStorage>> filteredGames = new();
@@ -47,6 +45,7 @@ internal class ProcessParsedPgn
 
     internal static async Task ProcessGame(bool isFromWhitesPerspective,
                                           int maxWidth,
+                                          string initialFen,
                                           Game<MoveStorage> game,
                                           GameFilter gameFilter,
                                           Dictionary<string, string> lastMoveDict,
@@ -55,8 +54,8 @@ internal class ProcessParsedPgn
 
         await Task.Run(() =>
         {
-            string moveKey = BOARD_FEN;
-            string lastGameKey = BOARD_FEN;
+            string moveKey = initialFen;
+            string lastGameKey = initialFen;
             int moveCount = 0;
 
             while (game.HasNextMove)
@@ -67,7 +66,10 @@ internal class ProcessParsedPgn
                 string gameKey = $"{game.CurrentFEN.Split(" ")[0]}";
                 moveKey += gameKey;
 
+
                 if (moveLines.Count <= ++moveCount) moveLines.Add(new SortedList<string, RenderableGameMove>()); 
+
+
 
                 if (!moveLines[moveCount].ContainsKey($"{moveKey}"))
                 {
@@ -76,16 +78,18 @@ internal class ProcessParsedPgn
                 else if (moveCount + 1 < moveLines.Count)
                 {
                     int addedCount = moveLines[moveCount+1].Where(x => x.Key.StartsWith(moveKey, StringComparison.OrdinalIgnoreCase)).Count();
+
                     
                     if (addedCount >= 1)
                     {
                         try
                         {
+                            Console.WriteLine($"2+ {addedCount,4} {moveCount,4}");
                             moveLines[moveCount].Add($"{moveKey}{addedCount}", new RenderableGameMove { San = "", BoardImage = null, BoardFen = "", Comment = "" });
                         }
                         catch (Exception ex)
                         {
-                            Console.WriteLine($"ERROR {addedCount} {ex.Message}");
+                            //Console.WriteLine($"ERROR {addedCount} {moveCount} {ex.Message}");
                         }
                     }
                 }
@@ -99,7 +103,8 @@ internal class ProcessParsedPgn
 
                         if (lastMoveDict.ContainsKey(moveKey))
                         {
-                            lastMoveDict[moveKey] += $"** OR ** {game.TagSection["Opening"]}";
+                            lastMoveDict[moveKey] += lastMoveDict[moveKey].Contains(game.TagSection["Opening"]) ? "" :
+                                                                                                                $" ** OR ** {game.TagSection["Opening"]}";
                         }
                         else
                         {
@@ -120,7 +125,7 @@ internal class ProcessParsedPgn
 
 
     [SupportedOSPlatform("windows")]
-    internal static async Task<RenderableGame> BuildMoveImageData(MoveImageData moveImageData)
+    internal static async Task<RenderableGame> BuildMoveImageData(MoveImageData moveImageData, string initialFen)
     {
         IBoardRenderer boardRenderer = new ShadowBoardRenderer(logger: null);
 
@@ -130,7 +135,7 @@ internal class ProcessParsedPgn
         GameLine moveLines = new();
 
         moveLines.MoveLines.Add(new());
-        moveLines.MoveLines[0].Add(BOARD_FEN, new RenderableGameMove() { BoardFen = BOARD_FEN, BoardImage = null, San = "", Comment = "" });
+        moveLines.MoveLines[0].Add(initialFen, new RenderableGameMove() { BoardFen=initialFen, BoardImage = null, San = "", Comment = "" });
 
 
 
@@ -148,6 +153,7 @@ internal class ProcessParsedPgn
         {
             await ProcessGame(moveImageData.IsFromWhitesPerspective,
                               maxWidth,
+                              initialFen,
                               game,
                               moveImageData.Filter,
                               moveLines.TextForKey,

@@ -8,7 +8,8 @@ public sealed class CommandLineOptions : CommandLineOptionsBase
     [Value(index: 1, Required = true, HelpText = "Diagram filename to write")]
     public FileInfo? DiagramOutFilePath { get; set; }
 
-
+    [Option(longName: "initialFen", Required = false, HelpText = "Initial Fen", Default = @"rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR")]
+    public string InitialFen { get; set; } = "";
 
     [Option(shortName: 't', longName: "title", Required = false, HelpText = "Header Text", Default = "")]
     public string DiagramTitle { get; set; } = "";

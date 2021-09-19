@@ -32,7 +32,7 @@ public class DiagramPgn
     }
 
     [SupportedOSPlatform("windows")]
-    public async Task BuildMoveData(bool isFromWhitesPerspective, GameFilter filter)
+    public async Task BuildMoveData(bool isFromWhitesPerspective, GameFilter filter, string initialFen)
     {
         if (_parsedGames is null)
         {
@@ -40,11 +40,12 @@ public class DiagramPgn
         }
 
         _moveData = await ProcessParsedPgn.BuildMoveImageData(new MoveImageData()
-        {
-            ParsedGames = _parsedGames,
-            Filter = filter,
-            IsFromWhitesPerspective = isFromWhitesPerspective
-        });
+                                                              {
+                                                                  ParsedGames = _parsedGames,
+                                                                  Filter = filter,
+                                                                  IsFromWhitesPerspective = isFromWhitesPerspective
+                                                              }
+                                                              , initialFen);
     }
 
     [SupportedOSPlatform("windows")]
