@@ -28,6 +28,8 @@ public class DiagramPgn
         PGNParser parser = new(new PGNParserOptions(maxPlyCountPerGame: maxPly, ignoreVariations: true));
         IEnumerable<Game<MoveStorage>>? retVal = await parser.GetGamesFromPGNAsync(preParsedPgn.ToString(CultureInfo.InvariantCulture));
 
+        Console.WriteLine($">> Found {parser.GameCount} games and succesfully processed {parser.Completed}");
+
         return retVal;
     }
 

@@ -100,9 +100,13 @@ internal class ProcessParsedPgn
 
         int maxMoves = 0;
 
-        foreach (Game<MoveStorage>? game in (moveImageData.Filter.TakeGamesFromEnd) ?
-                 GetFilteredGameList(moveImageData).TakeLast(moveImageData.Filter.MaxGames) :
-                 GetFilteredGameList(moveImageData).Take(moveImageData.Filter.MaxGames))
+        var filteredGames = (moveImageData.Filter.TakeGamesFromEnd) ?
+                            GetFilteredGameList(moveImageData).TakeLast(moveImageData.Filter.MaxGames) :
+                            GetFilteredGameList(moveImageData).Take(moveImageData.Filter.MaxGames);
+
+
+
+        foreach (Game<MoveStorage>? game in filteredGames)
         {
             (List<RenderableGameMove> renderableMoves, string lastMoveKey) = await ProcessGame(initialFen, game);
 
