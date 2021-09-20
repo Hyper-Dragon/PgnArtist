@@ -86,7 +86,8 @@ internal class DiagramRenderer
                 //Draw Moves
                 if (loopY < moveLines.GetLength(1))
                 {
-                    if (moveLines[loopX, loopY].BoardImage != null)
+                    if (moveLines[loopX, loopY].BoardImage != null || 
+                        moveLines[loopX, loopY-1].BoardImage != null)
                     {
                         if (shadowOffset > 0)
                         {
@@ -104,7 +105,7 @@ internal class DiagramRenderer
                                                    BoxWidth,
                                                    BoxHeight);
 
-                            graphics.DrawString($"{(int)Math.Round((loopY + 1) / 2d, MidpointRounding.AwayFromZero)}.{((loopY) % 2d != 0 ? "" : "..")} {moveLines[loopX, loopY].San}",
+                            graphics.DrawString($"{(int)Math.Round((loopY + 1) / 2d, MidpointRounding.AwayFromZero)}.{((loopY) % 2d != 0 ? "" : "..")} { ((moveLines[loopX, loopY].BoardImage == null) ?"END": moveLines[loopX, loopY].San)}",
                                                 headFont,
                                                 textBrush ?? Brushes.White,
                                                 (SpacerSizeX) + ((loopX * BlockSizeX) + (SpacerSizeX / 2) + (SQUARE_SIZE / 2)) - (BoxWidth / 2) + 1,
@@ -156,8 +157,7 @@ internal class DiagramRenderer
             for (int loopX = 0; loopX < moveLines.GetLength(0); loopX++)
             {
                 //Draw the TOP connector
-                if (loopY - 1 >= 0 && moveLines[loopX, loopY - 1].BoardImage is not null &&
-                                      moveLines[loopX, loopY].BoardImage is not null)
+                if (loopY - 1 >= 0 && (moveLines[loopX, loopY - 1].BoardImage is not null ))
                 {
                     graphics.DrawLine(connectorPen,
                                       shadowOffset + (SpacerSizeX) + (loopX * BlockSizeX) + (SpacerSizeX / 2) + (SQUARE_SIZE / 2),

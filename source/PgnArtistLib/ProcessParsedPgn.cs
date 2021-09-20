@@ -9,7 +9,7 @@ internal class ProcessParsedPgn
         //Filter the game list
         foreach (Game<MoveStorage> game in moveImageData.ParsedGames)
         {
-            Console.WriteLine($"::{game.TagSection["Opening"]}");
+            //Console.WriteLine($"::{game.TagSection["Opening"]}");
 
 
             bool isIncluded = true;
@@ -101,8 +101,8 @@ internal class ProcessParsedPgn
         int maxMoves = 0;
 
         foreach (Game<MoveStorage>? game in (moveImageData.Filter.TakeGamesFromEnd) ?
-              GetFilteredGameList(moveImageData).TakeLast(moveImageData.Filter.MaxGames) :
-              GetFilteredGameList(moveImageData).Take(moveImageData.Filter.MaxGames))
+                 GetFilteredGameList(moveImageData).TakeLast(moveImageData.Filter.MaxGames) :
+                 GetFilteredGameList(moveImageData).Take(moveImageData.Filter.MaxGames))
         {
             (List<RenderableGameMove> renderableMoves, string lastMoveKey) = await ProcessGame(initialFen, game);
 
