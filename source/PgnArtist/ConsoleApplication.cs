@@ -51,15 +51,15 @@ public sealed class ConsoleApplication : ConsoleApplicationBase
 
 
 
-        _filter.MaxGames        = cmdLineOpts.MaxGames;
-        _filter.MaxPly                = cmdLineOpts.MaxPly;
-        _filter.TakeGamesFromEnd      = cmdLineOpts.TakeGamesFromEnd;
-        _filter.FilterBlack           = cmdLineOpts.FilterBlack;
-        _filter.FilterWhite           = cmdLineOpts.FilterWhite;
-        _filter.FilterEither          = cmdLineOpts.FilterEither;
-        _filter.FilterECO             = cmdLineOpts.FilterECO;
+        _filter.MaxGames = cmdLineOpts.MaxGames;
+        _filter.MaxPly = cmdLineOpts.MaxPly;
+        _filter.TakeGamesFromEnd = cmdLineOpts.TakeGamesFromEnd;
+        _filter.FilterBlack = cmdLineOpts.FilterBlack;
+        _filter.FilterWhite = cmdLineOpts.FilterWhite;
+        _filter.FilterEither = cmdLineOpts.FilterEither;
+        _filter.FilterECO = cmdLineOpts.FilterECO;
         _filter.FilterOpeningContains = cmdLineOpts.FilterOpeningContains;
-        
+
 
 
         _helpers.StartTimedSection($">> Processing PGN {cmdLineOpts.PgnFilePath}");

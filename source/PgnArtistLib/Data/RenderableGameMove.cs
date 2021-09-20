@@ -4,7 +4,7 @@
 
 public record GameLine
 {
-    public Dictionary<string,string> TextForKey { get; }  = new();
+    public Dictionary<string, string> TextForKey { get; } = new();
     public List<SortedList<string, RenderableGameMove>> MoveLines { get; } = new();
 }
 
@@ -35,7 +35,7 @@ public class RenderableGameCollection
     public GameLine MoveLines { get; set; } = new();
 
 
-    public RenderableGameMove[,] DisplayGrid { get; set; } = new RenderableGameMove[0,0];
+    public RenderableGameMove[,] DisplayGrid { get; set; } = new RenderableGameMove[0, 0];
 
     public int MaxWidth { get; set; } = 0;
 

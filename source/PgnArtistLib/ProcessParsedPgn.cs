@@ -73,7 +73,7 @@ internal class ProcessParsedPgn
 
                 renderableGame.renderableMoves.Add(new RenderableGameMove()
                 {
-                    IsHidden=false,
+                    IsHidden = false,
                     San = game.CurrentMoveNode.Value.SAN,
                     LastBoardFen = lastGameKey,
                     BoardFen = $"{gameKey}",
@@ -93,18 +93,18 @@ internal class ProcessParsedPgn
     [SupportedOSPlatform("windows")]
     internal static async Task<RenderableGameCollection> BuildMoveImageData(MoveImageData moveImageData, string initialFen)
     {
-        RenderableGameMove emptyMove = new() { IsHidden=true, BoardFen = "", BoardImage = null, Comment = "", LastBoardFen = "", San = "" };
+        RenderableGameMove emptyMove = new() { IsHidden = true, BoardFen = "", BoardImage = null, Comment = "", LastBoardFen = "", San = "" };
 
         IBoardRenderer boardRenderer = new ShadowBoardRenderer(logger: null);
         SortedList<string, List<RenderableGameMove>> renderableGameList = new();
 
         int maxMoves = 0;
 
-        foreach (var game in (moveImageData.Filter.TakeGamesFromEnd) ?
+        foreach (Game<MoveStorage>? game in (moveImageData.Filter.TakeGamesFromEnd) ?
               GetFilteredGameList(moveImageData).TakeLast(moveImageData.Filter.MaxGames) :
               GetFilteredGameList(moveImageData).Take(moveImageData.Filter.MaxGames))
         {
-            var (renderableMoves, lastMoveKey) = await ProcessGame(initialFen, game);
+            (List<RenderableGameMove> renderableMoves, string lastMoveKey) = await ProcessGame(initialFen, game);
 
             if (!renderableGameList.ContainsKey(lastMoveKey))
             {
@@ -115,7 +115,7 @@ internal class ProcessParsedPgn
 
         //Copy all moves into a grid
         RenderableGameMove[,] displayGrid = new RenderableGameMove[renderableGameList.Count, maxMoves];
-        var fixedGameList = renderableGameList.ToArray();
+        KeyValuePair<string, List<RenderableGameMove>>[]? fixedGameList = renderableGameList.ToArray();
 
         Parallel.For(0, fixedGameList.Length, loopX =>
         {
@@ -133,7 +133,7 @@ internal class ProcessParsedPgn
             string skipFen = "";
             for (int loopX = 0; loopX < displayGrid.GetLength(0); loopX++)
             {
-                if (String.Equals(skipFen, displayGrid[loopX, loopY].BoardFen))
+                if (string.Equals(skipFen, displayGrid[loopX, loopY].BoardFen))
                 {
                     displayGrid[loopX, loopY].IsHidden = true;
                 }
@@ -150,7 +150,10 @@ internal class ProcessParsedPgn
         {
             for (int loopY = 0; loopY < maxMoves; loopY++)
             {
-                if ( displayGrid[loopX, loopY].IsHidden) continue;
+                if (displayGrid[loopX, loopY].IsHidden)
+                {
+                    continue;
+                }
 
                 byte[] boardImgBytes = await boardRenderer.GetPngImageDiffFromFenAsync(displayGrid[loopX, loopY].BoardFen,
                                                                                        displayGrid[loopX, loopY].LastBoardFen,

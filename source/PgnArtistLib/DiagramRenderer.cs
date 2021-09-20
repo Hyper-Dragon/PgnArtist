@@ -36,9 +36,8 @@ internal class DiagramRenderer
         using Pen connectorShadowPen = new(new SolidBrush(Color.FromArgb(200, 0, 0, 0))) { Width = ConnectSize };
         using Pen connectorPen = new(Brushes.Orange) { Width = ConnectSize };
 
-        Graphics graphics;
 
-        CreateDrawingSurface(gridXLength, gridYLength, out Bitmap image, out graphics);
+        CreateDrawingSurface(gridXLength, gridYLength, out Bitmap image, out Graphics graphics);
 
         RenderBackgroundFromStream(graphics,
                                    image.Size,
@@ -212,8 +211,8 @@ internal class DiagramRenderer
 
     private void RenderPinstripes(Graphics graphics, RenderableGameCollection renderableGame, Brush drawBrush, Font stripeFont, Size imageSize)
     {
-        var moveLines = renderableGame.MoveLines.MoveLines;
-        var lastMoveNameList = renderableGame.MoveLines.TextForKey;
+        List<SortedList<string, RenderableGameMove>>? moveLines = renderableGame.MoveLines.MoveLines;
+        Dictionary<string, string>? lastMoveNameList = renderableGame.MoveLines.TextForKey;
         //Draw Pinstripes
         //int loopY = moveLines.Count - 1;
 
