@@ -20,8 +20,12 @@ internal class DiagramRenderer
     public int BoardShadowOffset { get; set; } = 8;
 
 
-    public Bitmap RenderMoveImageData(RenderableGame moveLines, string diagramTitle, float titleSize)
+    public Bitmap RenderMoveImageData(RenderableGameCollection moveLines, string diagramTitle, float titleSize)
     {
+
+        int gridXLength = moveLines.DisplayGrid.GetLength(0);
+        int gridYLength = moveLines.DisplayGrid.GetLength(1);
+
         // Create font/brush/pen.
         using Font headFont = new(FontFamily.GenericSansSerif, HeadFontSize);
         using Font stripeFont = new(FontFamily.GenericMonospace, SpacerSizeX / 2f);
@@ -32,7 +36,9 @@ internal class DiagramRenderer
         using Pen connectorShadowPen = new(new SolidBrush(Color.FromArgb(200, 0, 0, 0))) { Width = ConnectSize };
         using Pen connectorPen = new(Brushes.Orange) { Width = ConnectSize };
 
-        CreateDrawingSurface(moveLines.MoveLines.MoveLines, out Bitmap image, out Graphics graphics);
+        Graphics graphics;
+
+        CreateDrawingSurface(gridXLength, gridYLength, out Bitmap image, out graphics);
 
         RenderBackgroundFromStream(graphics,
                                    image.Size,
@@ -41,21 +47,21 @@ internal class DiagramRenderer
         RenderTitle(graphics, transBrush, diagramTitle, titleSize, shadowOffset: BoardShadowOffset);
         RenderTitle(graphics, Brushes.White, diagramTitle, titleSize);
         RenderBackgroundStripes(graphics, bkgStripeBrush, image.Size);
-        RenderPinstripes(graphics, moveLines, drawBrush, stripeFont, image.Size);
-        RenderBoards(graphics, moveLines.MoveLines.MoveLines, transBrush, shadowOffset: BoardShadowOffset);
-        RenderMoveText(graphics, moveLines.MoveLines.MoveLines, headFont, transBrush, shadowOffset: BoardShadowOffset);
-        RenderConnectors(graphics, moveLines.MoveLines.MoveLines, connectorShadowPen, shadowOffset: BoardShadowOffset);
-        RenderConnectors(graphics, moveLines.MoveLines.MoveLines, connectorPen);
-        RenderMoveText(graphics, moveLines.MoveLines.MoveLines, headFont, moveBkgBrush, textBrush: drawBrush);
-        RenderBoards(graphics, moveLines.MoveLines.MoveLines, transBrush);
+        //RenderPinstripes(graphics, moveLines, drawBrush, stripeFont, image.Size);
+        RenderBoards(graphics, moveLines.DisplayGrid, transBrush, BoardShadowOffset);
+        RenderMoveText(graphics, moveLines.DisplayGrid, headFont, transBrush, shadowOffset: BoardShadowOffset);
+        RenderConnectors(graphics, moveLines.DisplayGrid, connectorShadowPen, shadowOffset: BoardShadowOffset);
+        RenderConnectors(graphics, moveLines.DisplayGrid, connectorPen);
+        RenderMoveText(graphics, moveLines.DisplayGrid, headFont, moveBkgBrush, textBrush: drawBrush);
+        RenderBoards(graphics, moveLines.DisplayGrid, transBrush);
 
         return image;
     }
 
-    private void CreateDrawingSurface(List<SortedList<string, RenderableGameMove>> moveLines, out Bitmap image, out Graphics graphics)
+    private void CreateDrawingSurface(int gridXLength, int gridYLength, out Bitmap image, out Graphics graphics)
     {
-        image = new(((moveLines.Max(item => item.Count)) * BlockSizeX) + SpacerSizeX + (SpacerSizeX / 2),
-                    (moveLines.Count * BlockSizeY) + (SpacerSizeY / 4),
+        image = new((gridXLength * BlockSizeX) + SpacerSizeX + (SpacerSizeX / 2),
+                    (gridYLength * BlockSizeY) + (SpacerSizeY / 4),
                     PixelFormat.Format32bppArgb);
 
         graphics = Graphics.FromImage(image);
@@ -67,142 +73,144 @@ internal class DiagramRenderer
         graphics.Clear(Color.Black);
     }
 
-    private void RenderMoveText(Graphics graphics, List<SortedList<string, RenderableGameMove>> moveLines, Font headFont, Brush moveBkgBrush, int shadowOffset = 0, Brush? textBrush = null)
+    private void RenderMoveText(Graphics graphics, RenderableGameMove[,] moveLines, Font headFont, Brush moveBkgBrush, int shadowOffset = 0, Brush? textBrush = null)
     {
         if (textBrush is null && shadowOffset == 0)
         {
             throw new ArgumentException("You must provide a 'textBrush' if is 'ShadowLayer' is false");
         }
 
-        for (int loopY = 0; loopY < moveLines.Count; loopY++)
+        for (int loopY = 1; loopY < moveLines.GetLength(1); loopY++)
         {
-            KeyValuePair<string, RenderableGameMove>[] moveLine = moveLines[loopY].OrderBy(x => x.Key).ToArray();
-
-            for (int loopX = 0; loopX < moveLine.Length; loopX++)
+            for (int loopX = 0; loopX < moveLines.GetLength(0); loopX++)
             {
                 //Draw Moves
-                if (loopY + 1 < moveLines.Count)
+                if (loopY < moveLines.GetLength(1))
                 {
-                    bool isWhite = true;
-                    for (int loopNextRowX = 0, moveNum = 1; loopNextRowX < moveLines[loopY + 1].Count; loopNextRowX++, moveNum = !isWhite ? moveNum + 1 : moveNum, isWhite = !isWhite)
-                    {
-                        if (moveLines[loopY + 1].Keys[loopNextRowX].Contains(moveLines[loopY].Keys[loopX], StringComparison.OrdinalIgnoreCase))
-                        {
-                            if (moveLines[loopY + 1].Values[loopNextRowX].BoardImage != null)
-                            {
-                                if (shadowOffset > 0)
-                                {
-                                    graphics.FillRectangle(moveBkgBrush,
-                                                           shadowOffset + (SpacerSizeX) + ((loopNextRowX * BlockSizeX) + (SpacerSizeX / 2) + (SQUARE_SIZE / 2)) - (BoxWidth / 2),
-                                                           shadowOffset + ((loopY * BlockSizeY) + (SpacerSizeY / 2) + (SQUARE_SIZE) + (SpacerSizeY / 2)) - (BoxHeight / 2),
-                                                           BoxWidth,
-                                                           BoxHeight);
-                                }
-                                else
-                                {
-                                    graphics.FillRectangle(moveBkgBrush,
-                                                           (SpacerSizeX) + ((loopNextRowX * BlockSizeX) + (SpacerSizeX / 2) + (SQUARE_SIZE / 2)) - (BoxWidth / 2),
-                                                           ((loopY * BlockSizeY) + (SpacerSizeY / 2) + (SQUARE_SIZE) + (SpacerSizeY / 2)) - (BoxHeight / 2),
-                                                           BoxWidth,
-                                                           BoxHeight);
-
-                                    graphics.DrawString($"{(int)Math.Round((loopY + 1) / 2d, MidpointRounding.AwayFromZero)}.{((loopY + 1) % 2d != 0 ? "" : "..")} {moveLines[loopY + 1].Values[loopNextRowX].San}",
-                                                        headFont,
-                                                        textBrush ?? Brushes.White,
-                                                        (SpacerSizeX) + ((loopNextRowX * BlockSizeX) + (SpacerSizeX / 2) + (SQUARE_SIZE / 2)) - (BoxWidth / 2) + 1,
-                                                        ((loopY * BlockSizeY) + (SpacerSizeY / 2) + (SQUARE_SIZE) + (SpacerSizeY / 2)) - (BoxHeight / 2) + 1);
-                                }
-                            }
-                        }
-                    }
-                }
-
-            }
-        }
-    }
-
-    private void RenderBoards(Graphics graphics, List<SortedList<string, RenderableGameMove>> moveLines, Brush transBrush, int shadowOffset = 0)
-    {
-        for (int loopY = 0; loopY < moveLines.Count; loopY++)
-        {
-            KeyValuePair<string, RenderableGameMove>[] moveLine = moveLines[loopY].OrderBy(x => x.Key).ToArray();
-
-            for (int loopX = 0; loopX < moveLine.Length; loopX++)
-            {
-                //Draw Board Shadow
-                if (moveLine[loopX].Value.BoardImage != null)
-                {
-                    try
+                    if (moveLines[loopX, loopY].BoardImage != null)
                     {
                         if (shadowOffset > 0)
                         {
-                            graphics.FillRectangle(transBrush,
-                                               (SpacerSizeX) + (loopX * BlockSizeX) + (SpacerSizeX / 2) + shadowOffset,
-                                               (loopY * BlockSizeY) + (SpacerSizeY / 2) + shadowOffset,
-                                               moveLine[loopX].Value.BoardImage.Width,
-                                               moveLine[loopX].Value.BoardImage.Height);
+                            graphics.FillRectangle(moveBkgBrush,
+                                                   shadowOffset + (SpacerSizeX) + ((loopX * BlockSizeX) + (SpacerSizeX / 2) + (SQUARE_SIZE / 2)) - (BoxWidth / 2),
+                                                   shadowOffset + (((loopY - 1) * BlockSizeY) + (SpacerSizeY / 2) + (SQUARE_SIZE) + (SpacerSizeY / 2)) - (BoxHeight / 2),
+                                                   BoxWidth,
+                                                   BoxHeight);
                         }
                         else
                         {
-                            graphics.DrawImage(moveLine[loopX].Value.BoardImage,
-                                               (SpacerSizeX) + (loopX * BlockSizeX) + (SpacerSizeX / 2),
-                                               (loopY * BlockSizeY) + (SpacerSizeY / 2));
+                            graphics.FillRectangle(moveBkgBrush,
+                                                   (SpacerSizeX) + ((loopX * BlockSizeX) + (SpacerSizeX / 2) + (SQUARE_SIZE / 2)) - (BoxWidth / 2),
+                                                   (((loopY - 1) * BlockSizeY) + (SpacerSizeY / 2) + (SQUARE_SIZE) + (SpacerSizeY / 2)) - (BoxHeight / 2),
+                                                   BoxWidth,
+                                                   BoxHeight);
+
+                            graphics.DrawString($"{(int)Math.Round((loopY + 1) / 2d, MidpointRounding.AwayFromZero)}.{((loopY) % 2d != 0 ? "" : "..")} {moveLines[loopX, loopY].San}",
+                                                headFont,
+                                                textBrush ?? Brushes.White,
+                                                (SpacerSizeX) + ((loopX * BlockSizeX) + (SpacerSizeX / 2) + (SQUARE_SIZE / 2)) - (BoxWidth / 2) + 1,
+                                                (((loopY - 1) * BlockSizeY) + (SpacerSizeY / 2) + (SQUARE_SIZE) + (SpacerSizeY / 2)) - (BoxHeight / 2) + 1);
                         }
                     }
-                    catch (Exception ex)
+                }
+
+            }
+        }
+    }
+
+    private void RenderBoards(Graphics graphics, RenderableGameMove[,] moveLines, Brush transBrush, int shadowOffset = 0)
+    {
+        for (int loopY = 0; loopY < moveLines.GetLength(1); loopY++)
+        {
+            for (int loopX = 0; loopX < moveLines.GetLength(0); loopX++)
+            {
+                //Draw Board Shadow
+                if (moveLines[loopX, loopY].BoardImage != null)
+                {
+                    if (shadowOffset > 0)
                     {
-                        Console.WriteLine(ex.Message);
+                        graphics.FillRectangle(transBrush,
+                                           (SpacerSizeX) + (loopX * BlockSizeX) + (SpacerSizeX / 2) + shadowOffset,
+                                           (loopY * BlockSizeY) + (SpacerSizeY / 2) + shadowOffset,
+                                           moveLines[loopX, loopY].BoardImage.Width,
+                                           moveLines[loopX, loopY].BoardImage.Height);
+                    }
+                    else
+                    {
+                        graphics.DrawImage(moveLines[loopX, loopY].BoardImage,
+                                           (SpacerSizeX) + (loopX * BlockSizeX) + (SpacerSizeX / 2),
+                                           (loopY * BlockSizeY) + (SpacerSizeY / 2));
                     }
                 }
             }
         }
     }
 
-    private void RenderConnectors(Graphics graphics, List<SortedList<string, RenderableGameMove>> moveLines, Pen connectorPen, int shadowOffset = 0)
+    private void RenderConnectors(Graphics graphics, RenderableGameMove[,] moveLines, Pen connectorPen, int shadowOffset = 0)
     {
         graphics.TextRenderingHint = TextRenderingHint.AntiAlias;
+        string lastVisibleFen = "";
+        int lastVisibleFenIdx = 0;
 
-        for (int loopY = 0; loopY < moveLines.Count; loopY++)
+        for (int loopY = 0; loopY < moveLines.GetLength(1); loopY++)
         {
-            KeyValuePair<string, RenderableGameMove>[] moveLine = moveLines[loopY].OrderBy(x => x.Key).ToArray();
-
-            for (int loopX = 0; loopX < moveLine.Length; loopX++)
+            for (int loopX = 0; loopX < moveLines.GetLength(0); loopX++)
             {
-                //Draw Connector
-                if (loopY + 1 < moveLines.Count)
+                //Draw the TOP connector
+                if (loopY - 1 >= 0 && moveLines[loopX, loopY - 1].BoardImage is not null &&
+                                      moveLines[loopX, loopY].BoardImage is not null)
                 {
-                    for (int loopNextRowX = 0; loopNextRowX < moveLines[loopY + 1].Count; loopNextRowX++)
-                    {
-                        if (moveLines[loopY + 1].Keys[loopNextRowX].Contains(moveLines[loopY].Keys[loopX], StringComparison.OrdinalIgnoreCase))
-                        {
-                            if (moveLines[loopY + 1].Values[loopNextRowX].BoardImage != null)
-                            {
-                                graphics.DrawLine(connectorPen,
-                                                  shadowOffset + (SpacerSizeX) + (loopX * BlockSizeX) + (SpacerSizeX / 2) + (SQUARE_SIZE / 2),
-                                                  (loopY * BlockSizeY) + (SpacerSizeY / 2) + (SQUARE_SIZE),
-                                                  shadowOffset + (SpacerSizeX) + (loopX * BlockSizeX) + (SpacerSizeX / 2) + (SQUARE_SIZE / 2),
-                                                  (loopY * BlockSizeY) + (SpacerSizeY / 2) + (SQUARE_SIZE) + (SpacerSizeY / 2));
+                    graphics.DrawLine(connectorPen,
+                                      shadowOffset + (SpacerSizeX) + (loopX * BlockSizeX) + (SpacerSizeX / 2) + (SQUARE_SIZE / 2),
+                                      ((loopY - 1) * BlockSizeY) + (SpacerSizeY / 2) + (SQUARE_SIZE),
+                                      shadowOffset + (SpacerSizeX) + (loopX * BlockSizeX) + (SpacerSizeX / 2) + (SQUARE_SIZE / 2),
+                                      ((loopY - 1) * BlockSizeY) + (SpacerSizeY / 2) + (SQUARE_SIZE) + (SpacerSizeY / 2));
+                }
 
-                                graphics.DrawLine(connectorPen,
-                                                  shadowOffset + (SpacerSizeX) + (loopNextRowX * BlockSizeX) + (SpacerSizeX / 2) + (SQUARE_SIZE / 2),
-                                                  shadowOffset + (loopY * BlockSizeY) + (SpacerSizeY / 2) + (SQUARE_SIZE) + (SpacerSizeY / 2),
-                                                  shadowOffset + (SpacerSizeX) + (loopNextRowX * BlockSizeX) + (SpacerSizeX / 2) + (SQUARE_SIZE / 2),
-                                                  shadowOffset + ((loopY + 1) * BlockSizeY) + (SpacerSizeY / 2));
-
-                                graphics.DrawLine(connectorPen,
-                                                  shadowOffset + (SpacerSizeX) + (loopX * BlockSizeX) + (SpacerSizeX / 2) + (SQUARE_SIZE / 2),
-                                                  shadowOffset + (loopY * BlockSizeY) + (SpacerSizeY / 2) + (SQUARE_SIZE) + (SpacerSizeY / 2),
-                                                  shadowOffset + (SpacerSizeX) + (loopNextRowX * BlockSizeX) + (SpacerSizeX / 2) + (SQUARE_SIZE / 2),
-                                                  shadowOffset + ((loopY + 1) * BlockSizeY));
-                            }
-                        }
-                    }
+                //Draw the BOTTOM connector
+                if (loopY + 1 < moveLines.GetLength(1) && moveLines[loopX, loopY + 1].BoardImage is not null)
+                {
+                    graphics.DrawLine(connectorPen,
+                                    shadowOffset + (SpacerSizeX) + (loopX * BlockSizeX) + (SpacerSizeX / 2) + (SQUARE_SIZE / 2),
+                                    shadowOffset + (loopY * BlockSizeY) + (SpacerSizeY / 2) + (SQUARE_SIZE) + (SpacerSizeY / 2),
+                                    shadowOffset + (SpacerSizeX) + (loopX * BlockSizeX) + (SpacerSizeX / 2) + (SQUARE_SIZE / 2),
+                                    shadowOffset + ((loopY + 1) * BlockSizeY) + (SpacerSizeY / 2));
                 }
             }
         }
+
+        //Draw the HORIZONTAL connectors
+        for (int loopY = 1; loopY < moveLines.GetLength(1); loopY++)
+        {
+            for (int loopX = 0; loopX < moveLines.GetLength(0); loopX++)
+            {
+                if (!moveLines[loopX, loopY - 1].IsHidden)
+                {
+                    lastVisibleFen = moveLines[loopX, loopY - 1].BoardFen;
+                    lastVisibleFenIdx = loopX;
+                    //Console.WriteLine($"Last Visible FEN {loopX,2}:{loopY - 1,2} {lastVisibleFen}");
+                }
+
+                if (!moveLines[loopX, loopY].IsHidden)
+                {
+                    if (moveLines[loopX, loopY].LastBoardFen == lastVisibleFen)
+                    {
+                        //Console.WriteLine($"   >>>>> {loopX,2}:{loopY,2} {moveLines[loopX, loopY].LastBoardFen}");
+
+                        graphics.DrawLine(connectorPen,
+                                          new Point(shadowOffset + (SpacerSizeX) + ((lastVisibleFenIdx) * BlockSizeX) + (SpacerSizeX / 2) + (SQUARE_SIZE / 2),
+                                                    shadowOffset + ((loopY - 1) * BlockSizeY) + (SpacerSizeY / 2) + (SQUARE_SIZE) + (SpacerSizeY / 2)),
+                                          new Point(shadowOffset + (SpacerSizeX) + ((Math.Max(0, loopX)) * BlockSizeX) + (SpacerSizeX / 2) + (SQUARE_SIZE / 2),
+                                                    shadowOffset + ((loopY - 1) * BlockSizeY) + (SpacerSizeY / 2) + (SQUARE_SIZE) + (SpacerSizeY / 2))
+                                          );
+                    }
+                }
+            }
+
+        }
     }
 
-    private void RenderPinstripes(Graphics graphics, RenderableGame renderableGame, Brush drawBrush, Font stripeFont, Size imageSize)
+    private void RenderPinstripes(Graphics graphics, RenderableGameCollection renderableGame, Brush drawBrush, Font stripeFont, Size imageSize)
     {
         var moveLines = renderableGame.MoveLines.MoveLines;
         var lastMoveNameList = renderableGame.MoveLines.TextForKey;
@@ -246,7 +254,6 @@ internal class DiagramRenderer
             }
         }
     }
-
     private void RenderBackgroundStripes(Graphics graphics, Brush hStripeBrush, Size imageSize)
     {
         for (int loopY = BlockSizeY; loopY < imageSize.Height; loopY += (BlockSizeY * 2))

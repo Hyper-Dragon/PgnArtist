@@ -43,161 +43,126 @@ internal class ProcessParsedPgn
     }
 
 
-    internal static async Task ProcessGame(bool isFromWhitesPerspective,
-                                          int maxWidth,
-                                          string initialFen,
-                                          Game<MoveStorage> game,
-                                          GameFilter gameFilter,
-                                          Dictionary<string, string> lastMoveDict,
-                                          List<SortedList<string, RenderableGameMove>> moveLines)
+    internal static async Task<(List<RenderableGameMove> renderableMoves, string lastMoveKey)> ProcessGame(string initialFen,
+                                                                                                           Game<MoveStorage> game)
     {
-
-        await Task.Run(() =>
+        return await Task.Run(() =>
         {
-            string moveKey = initialFen;
-            string lastGameKey = initialFen;
-            int moveCount = 0;
+            (List<RenderableGameMove> renderableMoves, string lastMoveKey) renderableGame = new();
+            string gameKey = initialFen, moveKey = initialFen, lastGameKey = initialFen;
+
+            renderableGame.renderableMoves = new();
+            renderableGame.renderableMoves.Add(new RenderableGameMove()
+            {
+                IsHidden = false,
+                San = game.CurrentMoveNode.Value.SAN,
+                LastBoardFen = lastGameKey,
+                BoardFen = moveKey,
+                BoardImage = null,
+                Comment = game.CurrentMoveNode.Value.Comment
+            });
 
             while (game.HasNextMove)
             {
-                lastGameKey = $"{game.CurrentFEN.Split(" ")[0]}";
+                lastGameKey = gameKey;
                 game.TraverseForward();
 
-                string gameKey = $"{game.CurrentFEN.Split(" ")[0]}";
+                gameKey = $"{game.CurrentFEN.Split(" ")[0]}";
                 moveKey += gameKey;
 
 
-                if (moveLines.Count <= ++moveCount) moveLines.Add(new SortedList<string, RenderableGameMove>()); 
-
-
-
-                if (!moveLines[moveCount].ContainsKey($"{moveKey}"))
+                renderableGame.renderableMoves.Add(new RenderableGameMove()
                 {
-                    moveLines[moveCount].Add($"{moveKey}", new RenderableGameMove() { San = game.CurrentMoveNode.Value.SAN, LastBoardFen = lastGameKey, BoardFen = $"{gameKey}", BoardImage = null, Comment = game.CurrentMoveNode.Value.Comment });
-                }
-                else if (moveCount + 1 < moveLines.Count)
-                {
-                    int addedCount = moveLines[moveCount+1].Where(x => x.Key.StartsWith(moveKey, StringComparison.OrdinalIgnoreCase)).Count();
-
-                    
-                    if (addedCount >= 1)
-                    {
-                        try
-                        {
-                            Console.WriteLine($"2+ {addedCount,4} {moveCount,4}");
-                            moveLines[moveCount].Add($"{moveKey}{addedCount}", new RenderableGameMove { San = "", BoardImage = null, BoardFen = "", Comment = "" });
-                        }
-                        catch (Exception ex)
-                        {
-                            //Console.WriteLine($"ERROR {addedCount} {moveCount} {ex.Message}");
-                        }
-                    }
-                }
-
-
-                if (!game.HasNextMove)
-                {
-                    if (game.TagSection.ContainsKey("Opening"))
-                    {
-                        Console.WriteLine($"FOUND: {game.TagSection["Opening"]}");
-
-                        if (lastMoveDict.ContainsKey(moveKey))
-                        {
-                            lastMoveDict[moveKey] += lastMoveDict[moveKey].Contains(game.TagSection["Opening"]) ? "" :
-                                                                                                                $" ** OR ** {game.TagSection["Opening"]}";
-                        }
-                        else
-                        {
-                            lastMoveDict.Add(moveKey, game.TagSection["Opening"]);
-                        }
-                    }
-                    else
-                    {
-                        Console.WriteLine($"KEY MISSING");
-                    }
-                }
+                    IsHidden=false,
+                    San = game.CurrentMoveNode.Value.SAN,
+                    LastBoardFen = lastGameKey,
+                    BoardFen = $"{gameKey}",
+                    BoardImage = null,
+                    Comment = game.CurrentMoveNode.Value.Comment
+                });
             }
 
+            renderableGame.lastMoveKey = moveKey;
             game.GoToInitialState();
 
+            return renderableGame;
         });
     }
 
 
     [SupportedOSPlatform("windows")]
-    internal static async Task<RenderableGame> BuildMoveImageData(MoveImageData moveImageData, string initialFen)
+    internal static async Task<RenderableGameCollection> BuildMoveImageData(MoveImageData moveImageData, string initialFen)
     {
+        RenderableGameMove emptyMove = new() { IsHidden=true, BoardFen = "", BoardImage = null, Comment = "", LastBoardFen = "", San = "" };
+
         IBoardRenderer boardRenderer = new ShadowBoardRenderer(logger: null);
+        SortedList<string, List<RenderableGameMove>> renderableGameList = new();
 
-        int maxWidth = 0;
-
-        SortedList<string, string> lastMoveNameList = new();
-        GameLine moveLines = new();
-
-        moveLines.MoveLines.Add(new());
-        moveLines.MoveLines[0].Add(initialFen, new RenderableGameMove() { BoardFen=initialFen, BoardImage = null, San = "", Comment = "" });
-
-
-
-        //Parallel.ForEach(
-        //    (moveImageData.Filter.TakeGamesFromEnd) ? filteredGames.TakeLast(moveImageData.Filter.MaxGames) : filteredGames.Take(moveImageData.Filter.MaxGames),
-        //        async game =>
-        //        {
-        //            await ProcessGame(moveImageData.IsFromWhitesPerspective, boardRenderer, maxWidth, game, moveImageData.Filter, lastMoveNameList, moveLines);
-        //        });
-
+        int maxMoves = 0;
 
         foreach (var game in (moveImageData.Filter.TakeGamesFromEnd) ?
-                              GetFilteredGameList(moveImageData).TakeLast(moveImageData.Filter.MaxGames) :
-                              GetFilteredGameList(moveImageData).Take(moveImageData.Filter.MaxGames))
+              GetFilteredGameList(moveImageData).TakeLast(moveImageData.Filter.MaxGames) :
+              GetFilteredGameList(moveImageData).Take(moveImageData.Filter.MaxGames))
         {
-            await ProcessGame(moveImageData.IsFromWhitesPerspective,
-                              maxWidth,
-                              initialFen,
-                              game,
-                              moveImageData.Filter,
-                              moveLines.TextForKey,
-                              moveLines.MoveLines);
+            var (renderableMoves, lastMoveKey) = await ProcessGame(initialFen, game);
+
+            if (!renderableGameList.ContainsKey(lastMoveKey))
+            {
+                renderableGameList.Add(lastMoveKey, renderableMoves);
+                maxMoves = Math.Max(maxMoves, renderableMoves.Count);
+            }
         }
 
+        //Copy all moves into a grid
+        RenderableGameMove[,] displayGrid = new RenderableGameMove[renderableGameList.Count, maxMoves];
+        var fixedGameList = renderableGameList.ToArray();
 
-        moveLines.MoveLines.ForEach(async games =>
+        Parallel.For(0, fixedGameList.Length, loopX =>
         {
-            foreach (var game in games)
+            for (int loopY = 0; loopY < maxMoves; loopY++)
             {
-                if (string.IsNullOrEmpty(game.Value.BoardFen)) continue;
+                displayGrid[loopX, loopY] = loopY < fixedGameList[loopX].Value.Count ?
+                                                    fixedGameList[loopX].Value[loopY] :
+                                                    emptyMove;
+            }
+        });
 
-                byte[] boardImgBytes = await boardRenderer.GetPngImageDiffFromFenAsync(game.Value.BoardFen,
-                                                                                       game.Value.LastBoardFen,
-                                                                                       DiagramRenderer.SQUARE_SIZE,
-                                                                                       moveImageData.IsFromWhitesPerspective);
-                using MemoryStream memStreamBoard = new(boardImgBytes);
-                game.Value.BoardImage = (Bitmap)Bitmap.FromStream(memStreamBoard);
+        // Hide duplicates along the X Axis
+        Parallel.For(0, displayGrid.GetLength(1), loopY =>
+        {
+            string skipFen = "";
+            for (int loopX = 0; loopX < displayGrid.GetLength(0); loopX++)
+            {
+                if (String.Equals(skipFen, displayGrid[loopX, loopY].BoardFen))
+                {
+                    displayGrid[loopX, loopY].IsHidden = true;
+                }
+                else
+                {
+                    skipFen = displayGrid[loopX, loopY].BoardFen;
+                }
             }
         });
 
 
-        for (int loopY = 1; loopY < (moveLines.MoveLines.Count - 1); loopY++)
+        // Get the board graphics
+        for (int loopX = 0; loopX < fixedGameList.Length; loopX++)
         {
-            for (int loopX = 0; loopX < moveLines.MoveLines[loopY].Count; loopX++)
+            for (int loopY = 0; loopY < maxMoves; loopY++)
             {
-                if (moveLines.MoveLines[loopY].Values[loopX].BoardImage != null)
-                {
-                    int addedCount = moveLines.MoveLines[loopY + 1].Where(x => x.Key.StartsWith(moveLines.MoveLines[loopY].Keys[loopX], StringComparison.OrdinalIgnoreCase)).Count();
+                if ( displayGrid[loopX, loopY].IsHidden) continue;
 
-                    if (addedCount == 0)
-                    {
-                        for (int loopInnerY = loopY + 1; loopInnerY < moveLines.MoveLines.Count; loopInnerY++)
-                        {
-                            moveLines.MoveLines[loopInnerY].Add($"{moveLines.MoveLines[loopY].Keys[loopX]}{addedCount}", new RenderableGameMove { San = "", BoardImage = null, BoardFen = "", Comment = "" });
-                        }
-                    }
-                }
+                byte[] boardImgBytes = await boardRenderer.GetPngImageDiffFromFenAsync(displayGrid[loopX, loopY].BoardFen,
+                                                                                       displayGrid[loopX, loopY].LastBoardFen,
+                                                                                       DiagramRenderer.SQUARE_SIZE,
+                                                                                       moveImageData.IsFromWhitesPerspective);
+
+                using MemoryStream memStreamBoard = new(boardImgBytes);
+                displayGrid[loopX, loopY].BoardImage = (Bitmap)Bitmap.FromStream(memStreamBoard);
             }
-
-            maxWidth = Math.Max(maxWidth, moveLines.MoveLines[loopY].Count);
         }
 
-        return new RenderableGame() { MoveLines = moveLines, MaxWidth = maxWidth };
+        return new RenderableGameCollection() { DisplayGrid = displayGrid, MoveLines = new(), MaxWidth = 0 };
     }
 }
+

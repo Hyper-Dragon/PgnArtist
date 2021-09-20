@@ -4,7 +4,7 @@ public class DiagramPgn
 {
     private string? _submittedPgn;
     private IEnumerable<Game<ChessLib.Data.MoveRepresentation.MoveStorage>>? _parsedGames;
-    private RenderableGame? _moveData;
+    private RenderableGameCollection? _moveData;
     public string SubmittedPgn => _submittedPgn ?? "";
 
 
@@ -40,12 +40,11 @@ public class DiagramPgn
         }
 
         _moveData = await ProcessParsedPgn.BuildMoveImageData(new MoveImageData()
-                                                              {
-                                                                  ParsedGames = _parsedGames,
-                                                                  Filter = filter,
-                                                                  IsFromWhitesPerspective = isFromWhitesPerspective
-                                                              }
-                                                              , initialFen);
+        {
+            ParsedGames = _parsedGames,
+            Filter = filter,
+            IsFromWhitesPerspective = isFromWhitesPerspective
+        }, initialFen);
     }
 
     [SupportedOSPlatform("windows")]
