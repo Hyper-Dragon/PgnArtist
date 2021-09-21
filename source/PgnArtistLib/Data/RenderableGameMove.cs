@@ -23,7 +23,7 @@ public record class RenderableGameMove
 
 public class MoveImageData
 {
-    public IEnumerable<Game<MoveStorage>> ParsedGames { get; set; }
+    public IEnumerable<Game> ParsedGames { get; set; }
     public GameFilter Filter { get; set; }
     public bool IsFromWhitesPerspective { get; set; }
 }

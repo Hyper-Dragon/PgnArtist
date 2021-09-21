@@ -1,6 +1,5 @@
-﻿global using ChessLib.Data;
-global using ChessLib.Data.MoveRepresentation;
-global using ChessLib.Parse.PGN;
+﻿global using ChessLib.Parse.PGN;
+global using ChessLib.Core;
 global using DynamicBoard;
 global using Microsoft.Extensions.FileProviders;
 global using PgnArtistLib.Data;

@@ -3,14 +3,14 @@
 public class DiagramPgn
 {
     private string? _submittedPgn;
-    private IEnumerable<Game<ChessLib.Data.MoveRepresentation.MoveStorage>>? _parsedGames;
+    private IEnumerable<Game>? _parsedGames;
     private RenderableGameCollection? _moveData;
     public string SubmittedPgn => _submittedPgn ?? "";
 
 
     public async Task<bool> AssignPgn(string pgnText, GameFilter gameFilter)
     {
-        _parsedGames = await ParseAndValidatePgn(pgnText, gameFilter.MaxPly).ConfigureAwait(false);
+        _parsedGames = (IEnumerable<Game>?)await ParseAndValidatePgn(pgnText, gameFilter.MaxPly).ConfigureAwait(false);
         _submittedPgn = pgnText;
         return true;
     }
@@ -23,10 +23,10 @@ public class DiagramPgn
         return true;
     }
 
-    private static async Task<IEnumerable<Game<MoveStorage>>> ParseAndValidatePgn(string preParsedPgn, int maxPly)
+    private static async Task<IEnumerable<Game>> ParseAndValidatePgn(string preParsedPgn, int maxPly)
     {
         PGNParser parser = new(new PGNParserOptions(maxPlyCountPerGame: maxPly, ignoreVariations: true));
-        IEnumerable<Game<MoveStorage>>? retVal = await parser.GetGamesFromPGNAsync(preParsedPgn.ToString(CultureInfo.InvariantCulture));
+        IEnumerable<Game>? retVal = await parser.GetGamesFromPGNAsync(preParsedPgn.ToString(CultureInfo.InvariantCulture));
 
         Console.WriteLine($">> Found {parser.GameCount} games and succesfully processed {parser.Completed}");
 

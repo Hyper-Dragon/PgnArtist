@@ -26,11 +26,12 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="ChessLib.Parse" Version="1.1.0-alpha" />
     <PackageReference Include="Microsoft.Extensions.FileProviders.Embedded" Version="6.0.0-rc.1.21452.15" />
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\..\ChessLib\src\ChessLib.Core\ChessLib.Core.csproj" />
+    <ProjectReference Include="..\..\..\ChessLib\src\ChessLib.Parse\ChessLib.Parse.csproj" />
     <ProjectReference Include="..\DynamicBoard\DynamicBoard.csproj" />
   </ItemGroup>
 

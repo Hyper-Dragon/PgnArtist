@@ -2,12 +2,12 @@
 
 internal class ProcessParsedPgn
 {
-    internal static List<Game<MoveStorage>> GetFilteredGameList(MoveImageData moveImageData)
+    internal static List<Game> GetFilteredGameList(MoveImageData moveImageData)
     {
-        List<Game<MoveStorage>> filteredGames = new();
+        List<Game> filteredGames = new();
 
         //Filter the game list
-        foreach (Game<MoveStorage> game in moveImageData.ParsedGames)
+        foreach (Game game in moveImageData.ParsedGames)
         {
             //Console.WriteLine($"::{game.TagSection["Opening"]}");
 
@@ -15,27 +15,27 @@ internal class ProcessParsedPgn
             bool isIncluded = true;
 
             if (!string.IsNullOrEmpty(moveImageData.Filter.FilterWhite) &&
-                !string.Equals(game.TagSection.Get("White"), moveImageData.Filter.FilterWhite, StringComparison.InvariantCultureIgnoreCase))
+                !string.Equals(game.Tags.Get("White"), moveImageData.Filter.FilterWhite, StringComparison.InvariantCultureIgnoreCase))
             {
                 isIncluded = false;
             }
-
+            
             if (!string.IsNullOrEmpty(moveImageData.Filter.FilterBlack) &&
-                !string.Equals(game.TagSection.Get("Black"), moveImageData.Filter.FilterBlack, StringComparison.InvariantCultureIgnoreCase))
+                !string.Equals(game.Tags.Get("Black"), moveImageData.Filter.FilterBlack, StringComparison.InvariantCultureIgnoreCase))
             {
                 isIncluded = false;
             }
-
+            
             if (!string.IsNullOrEmpty(moveImageData.Filter.FilterECO) &&
-                !string.Equals(game.TagSection.Get("ECO"), moveImageData.Filter.FilterECO, StringComparison.InvariantCultureIgnoreCase))
+                !string.Equals(game.Tags.Get("ECO"), moveImageData.Filter.FilterECO, StringComparison.InvariantCultureIgnoreCase))
             {
                 isIncluded = false;
             }
-
-
+            
+            
             if (isIncluded)
             {
-                filteredGames.Add(game);
+              filteredGames.Add(game);
             }
         }
 
@@ -43,8 +43,7 @@ internal class ProcessParsedPgn
     }
 
 
-    internal static async Task<(List<RenderableGameMove> renderableMoves, string lastMoveKey)> ProcessGame(string initialFen,
-                                                                                                           Game<MoveStorage> game)
+    internal static async Task<(List<RenderableGameMove> renderableMoves, string lastMoveKey)> ProcessGame(string initialFen, Game game)
     {
         return await Task.Run(() =>
         {
@@ -55,35 +54,33 @@ internal class ProcessParsedPgn
             renderableGame.renderableMoves.Add(new RenderableGameMove()
             {
                 IsHidden = false,
-                San = game.CurrentMoveNode.Value.SAN,
+                San = game.CurrentSan,
                 LastBoardFen = lastGameKey,
                 BoardFen = moveKey,
                 BoardImage = null,
-                Comment = game.CurrentMoveNode.Value.Comment
+                Comment = game.CurrentComment
             });
 
-            while (game.HasNextMove)
+            while (game.MoveNext())
             {
-                lastGameKey = gameKey;
-                game.TraverseForward();
-
-                gameKey = $"{game.CurrentFEN.Split(" ")[0]}";
+                gameKey = $"{game.Current.Board.Fen.ToString().Split(" ")[0]}";
                 moveKey += gameKey;
-
 
                 renderableGame.renderableMoves.Add(new RenderableGameMove()
                 {
                     IsHidden = false,
-                    San = game.CurrentMoveNode.Value.SAN,
+                    San = game.CurrentSan,
                     LastBoardFen = lastGameKey,
                     BoardFen = $"{gameKey}",
                     BoardImage = null,
-                    Comment = game.CurrentMoveNode.Value.Comment
+                    Comment = game.CurrentComment
                 });
+
+                lastGameKey = gameKey;
             }
 
             renderableGame.lastMoveKey = moveKey;
-            game.GoToInitialState();
+            game.Reset();
 
             return renderableGame;
         });
@@ -106,7 +103,7 @@ internal class ProcessParsedPgn
 
 
 
-        foreach (Game<MoveStorage>? game in filteredGames)
+        foreach (Game? game in filteredGames)
         {
             (List<RenderableGameMove> renderableMoves, string lastMoveKey) = await ProcessGame(initialFen, game);
 
