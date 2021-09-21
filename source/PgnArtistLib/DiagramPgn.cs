@@ -43,7 +43,7 @@ public class DiagramPgn
 
         _moveData = await ProcessParsedPgn.BuildMoveImageData(new MoveImageData()
         {
-            ParsedGames = _parsedGames,
+            ParsedGames =  _parsedGames.ToList(),
             Filter = filter,
             IsFromWhitesPerspective = isFromWhitesPerspective
         }, initialFen);

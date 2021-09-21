@@ -1,15 +1,6 @@
 ﻿namespace PgnArtistLib.Data;
 
 
-
-public record GameLine
-{
-    public Dictionary<string, string> TextForKey { get; } = new();
-    public List<SortedList<string, RenderableGameMove>> MoveLines { get; } = new();
-}
-
-
-
 public record class RenderableGameMove
 {
     public bool IsHidden { get; set; } = false;
@@ -23,23 +14,18 @@ public record class RenderableGameMove
 
 public class MoveImageData
 {
-    public IEnumerable<Game> ParsedGames { get; set; }
-    public GameFilter Filter { get; set; }
+    public List<Game> ParsedGames { get; set; } = new();
+    public GameFilter Filter { get; set; } = new();
     public bool IsFromWhitesPerspective { get; set; }
 }
 
 
 public class RenderableGameCollection
 {
-    public List<string> LastMoveNameList { get; set; } = new();
-
     public string[] Annotations { get; set; } = Array.Empty<string>();
-
+    public int[] GridStartY { get; set; } = Array.Empty<int>();
+    public int[] GridEndY { get; set; } = Array.Empty<int>();
     public RenderableGameMove[,] DisplayGrid { get; set; } = new RenderableGameMove[0, 0];
-
     public int MaxWidth { get; set; } = 0;
-
-
-
 }
 

@@ -99,7 +99,7 @@ internal class ProcessParsedPgn
 
         IBoardRenderer boardRenderer = new ShadowBoardRenderer(logger: null);
         SortedList<string, List<RenderableGameMove>> renderableGameList = new();
-        SortedList<string, string> annotations = new(); 
+        SortedList<string, string> annotations = new();
 
         int maxMoves = 0;
 
@@ -116,12 +116,12 @@ internal class ProcessParsedPgn
                 renderableGameList.Add(lastMoveKey, renderableMoves);
                 maxMoves = Math.Max(maxMoves, renderableMoves.Count);
 
-                annotations.Add(lastMoveKey, "some Annotation");
+                annotations.Add(lastMoveKey, $"::  {game.Tags["Opening"]}  ");
 
             }
             else
             {
-                annotations[lastMoveKey] += $"  ** OR **  ";
+                annotations[lastMoveKey] += $" +++++ {game.Tags["Opening"]}";
             }
         }
 
@@ -138,6 +138,7 @@ internal class ProcessParsedPgn
                                                     emptyMove;
             }
         });
+
 
         // Hide duplicates along the X Axis
         Parallel.For(0, displayGrid.GetLength(1), loopY =>
@@ -158,6 +159,9 @@ internal class ProcessParsedPgn
 
 
         // Get the board graphics
+        int[] gridStartY = new int[displayGrid.GetLength(0)];
+        int[] gridEndY = new int[displayGrid.GetLength(0)];
+
         for (int loopX = 0; loopX < fixedGameList.Length; loopX++)
         {
             for (int loopY = 0; loopY < maxMoves; loopY++)
@@ -166,7 +170,12 @@ internal class ProcessParsedPgn
                 {
                     continue;
                 }
+                else if (gridEndY[loopX] == 0)
+                {
+                    gridStartY[loopX] = loopY;
+                }
 
+                gridEndY[loopX] = loopY;   
                 byte[] boardImgBytes = await boardRenderer.GetPngImageDiffFromFenAsync(displayGrid[loopX, loopY].BoardFen,
                                                                                        displayGrid[loopX, loopY].LastBoardFen,
                                                                                        DiagramRenderer.SQUARE_SIZE,
@@ -178,6 +187,8 @@ internal class ProcessParsedPgn
         }
 
         return new RenderableGameCollection() { Annotations= annotations.Select(x => x.Value).ToArray<string>(), 
+                                                GridStartY = gridStartY,
+                                                GridEndY = gridEndY,
                                                 DisplayGrid = displayGrid, 
                                                 MaxWidth = maxMoves };
     }
