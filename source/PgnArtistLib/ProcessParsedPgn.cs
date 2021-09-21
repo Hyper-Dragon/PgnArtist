@@ -1,4 +1,6 @@
-﻿namespace PgnArtistLib;
+﻿using System.Linq;
+
+namespace PgnArtistLib;
 
 internal class ProcessParsedPgn
 {
@@ -9,25 +11,28 @@ internal class ProcessParsedPgn
         //Filter the game list
         foreach (Game game in moveImageData.ParsedGames)
         {
-            //Console.WriteLine($"::{game.TagSection["Opening"]}");
-
-
             bool isIncluded = true;
 
             if (!string.IsNullOrEmpty(moveImageData.Filter.FilterWhite) &&
-                !string.Equals(game.Tags.Get("White"), moveImageData.Filter.FilterWhite, StringComparison.InvariantCultureIgnoreCase))
+                !string.Equals(game.Tags.Get("White"), 
+                               moveImageData.Filter.FilterWhite, 
+                               StringComparison.InvariantCultureIgnoreCase))
             {
                 isIncluded = false;
             }
             
             if (!string.IsNullOrEmpty(moveImageData.Filter.FilterBlack) &&
-                !string.Equals(game.Tags.Get("Black"), moveImageData.Filter.FilterBlack, StringComparison.InvariantCultureIgnoreCase))
+                !string.Equals(game.Tags.Get("Black"), 
+                               moveImageData.Filter.FilterBlack, 
+                               StringComparison.InvariantCultureIgnoreCase))
             {
                 isIncluded = false;
             }
             
             if (!string.IsNullOrEmpty(moveImageData.Filter.FilterECO) &&
-                !string.Equals(game.Tags.Get("ECO"), moveImageData.Filter.FilterECO, StringComparison.InvariantCultureIgnoreCase))
+                !string.Equals(game.Tags.Get("ECO"), 
+                               moveImageData.Filter.FilterECO, 
+                               StringComparison.InvariantCultureIgnoreCase))
             {
                 isIncluded = false;
             }
@@ -94,14 +99,13 @@ internal class ProcessParsedPgn
 
         IBoardRenderer boardRenderer = new ShadowBoardRenderer(logger: null);
         SortedList<string, List<RenderableGameMove>> renderableGameList = new();
+        SortedList<string, string> annotations = new(); 
 
         int maxMoves = 0;
 
         var filteredGames = (moveImageData.Filter.TakeGamesFromEnd) ?
                             GetFilteredGameList(moveImageData).TakeLast(moveImageData.Filter.MaxGames) :
                             GetFilteredGameList(moveImageData).Take(moveImageData.Filter.MaxGames);
-
-
 
         foreach (Game? game in filteredGames)
         {
@@ -111,6 +115,13 @@ internal class ProcessParsedPgn
             {
                 renderableGameList.Add(lastMoveKey, renderableMoves);
                 maxMoves = Math.Max(maxMoves, renderableMoves.Count);
+
+                annotations.Add(lastMoveKey, "some Annotation");
+
+            }
+            else
+            {
+                annotations[lastMoveKey] += $"  ** OR **  ";
             }
         }
 
@@ -166,7 +177,9 @@ internal class ProcessParsedPgn
             }
         }
 
-        return new RenderableGameCollection() { DisplayGrid = displayGrid, MoveLines = new(), MaxWidth = 0 };
+        return new RenderableGameCollection() { Annotations= annotations.Select(x => x.Value).ToArray<string>(), 
+                                                DisplayGrid = displayGrid, 
+                                                MaxWidth = maxMoves };
     }
 }
 

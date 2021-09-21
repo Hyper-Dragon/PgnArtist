@@ -31,9 +31,9 @@ public class MoveImageData
 
 public class RenderableGameCollection
 {
-    //public SortedList<string, string> LastMoveNameList { get; set; } = new();
-    public GameLine MoveLines { get; set; } = new();
+    public List<string> LastMoveNameList { get; set; } = new();
 
+    public string[] Annotations { get; set; } = Array.Empty<string>();
 
     public RenderableGameMove[,] DisplayGrid { get; set; } = new RenderableGameMove[0, 0];
 
