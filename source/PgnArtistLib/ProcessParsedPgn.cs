@@ -36,8 +36,16 @@ internal class ProcessParsedPgn
             {
                 isIncluded = false;
             }
-            
-            
+
+            if (!string.IsNullOrEmpty(moveImageData.Filter.FilterResult) &&
+                !string.Equals(game.Tags.Get("Result"),
+                   moveImageData.Filter.FilterResult,
+                   StringComparison.InvariantCultureIgnoreCase))
+            {
+                isIncluded = false;
+            }
+
+
             if (isIncluded)
             {
               filteredGames.Add(game);
@@ -93,7 +101,7 @@ internal class ProcessParsedPgn
 
 
     [SupportedOSPlatform("windows")]
-    internal static async Task<RenderableGameCollection> BuildMoveImageData(MoveImageData moveImageData, string initialFen)
+    internal static async Task<RenderableGameCollection> BuildMoveImageData(MoveImageData moveImageData, string[] gameAttributes, string initialFen)
     {
         RenderableGameMove emptyMove = new() { IsHidden = true, BoardFen = "", BoardImage = null, Comment = "", LastBoardFen = "", San = "" };
 
@@ -111,17 +119,19 @@ internal class ProcessParsedPgn
         {
             (List<RenderableGameMove> renderableMoves, string lastMoveKey) = await ProcessGame(initialFen, game);
 
+            string stripeTxt = string.Concat(gameAttributes.Select(attrib => $"[{((game.Tags.ContainsKey(attrib))?game.Tags[attrib]:"??")}] "));
+
             if (!renderableGameList.ContainsKey(lastMoveKey))
             {
                 renderableGameList.Add(lastMoveKey, renderableMoves);
                 maxMoves = Math.Max(maxMoves, renderableMoves.Count);
 
-                annotations.Add(lastMoveKey, $"::  {game.Tags["Opening"]}  ");
+                annotations.Add(lastMoveKey, $":: {stripeTxt}");
 
             }
             else
             {
-                annotations[lastMoveKey] += $" +++++ {game.Tags["Opening"]}";
+                annotations[lastMoveKey] += $" +++++ {stripeTxt}";
             }
         }
 

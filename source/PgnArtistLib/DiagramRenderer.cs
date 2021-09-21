@@ -121,7 +121,6 @@ internal class DiagramRenderer
                         }
                     }
                 }
-
             }
         }
     }

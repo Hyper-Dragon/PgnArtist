@@ -23,8 +23,8 @@ public sealed class CommandLineOptions : CommandLineOptionsBase
     [Option(longName: "maxGames", Required = false, HelpText = "Max Games to Render", Default = 1000)]
     public int MaxGames { get; set; }
 
-
-
+    [Option(longName: "stripeAttributes", Required = false, HelpText = "Game attributes to add to the stripes ( ':' delimited list)", Default = "White:Black:Result")]
+    public string StripeAttributes { get; set; } = "";
 
     [Option(longName: "filterWhite", Required = false, HelpText = "Filter....", Default = "")]
     public string FilterWhite { get; set; } = "";
@@ -32,8 +32,8 @@ public sealed class CommandLineOptions : CommandLineOptionsBase
     [Option(longName: "filterBlack", Required = false, HelpText = "Filter....", Default = "")]
     public string FilterBlack { get; set; } = "";
 
-    [Option(longName: "filterEither", Required = false, HelpText = "Filter....", Default = "")]
-    public string FilterEither { get; set; } = "";
+    [Option(longName: "filterResult", Required = false, HelpText = "Filter....", Default = "")]
+    public string FilterResult { get; set; } = "";
 
     [Option(longName: "filterEco", Required = false, HelpText = "Filter....", Default = "")]
     public string FilterECO { get; set; } = "";

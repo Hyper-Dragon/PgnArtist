@@ -56,7 +56,7 @@ public sealed class ConsoleApplication : ConsoleApplicationBase
         _filter.TakeGamesFromEnd = cmdLineOpts.TakeGamesFromEnd;
         _filter.FilterBlack = cmdLineOpts.FilterBlack;
         _filter.FilterWhite = cmdLineOpts.FilterWhite;
-        _filter.FilterEither = cmdLineOpts.FilterEither;
+        _filter.FilterResult = cmdLineOpts.FilterResult;
         _filter.FilterECO = cmdLineOpts.FilterECO;
         _filter.FilterOpeningContains = cmdLineOpts.FilterOpeningContains;
 
@@ -79,7 +79,7 @@ public sealed class ConsoleApplication : ConsoleApplicationBase
     protected override async Task<int> RunImplAsync(CommandLineOptions cmdOpts)
     {
         _helpers.StartTimedSection(">> Processing Move Data");
-        await _diagramPgn.BuildMoveData(!cmdOpts.FlipBoard, _filter, cmdOpts.InitialFen);
+        await _diagramPgn.BuildMoveData(!cmdOpts.FlipBoard, _filter, cmdOpts.InitialFen, cmdOpts.StripeAttributes.Split(":"));
         _helpers.EndTimedSection(">> Processing Complete");
 
         _helpers.StartTimedSection(">> Generating Diagram");

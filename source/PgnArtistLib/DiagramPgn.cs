@@ -34,19 +34,19 @@ public class DiagramPgn
     }
 
     [SupportedOSPlatform("windows")]
-    public async Task BuildMoveData(bool isFromWhitesPerspective, GameFilter filter, string initialFen)
+    public async Task BuildMoveData(bool isFromWhitesPerspective, GameFilter filter, string initialFen, string[] gameAttributes)
     {
         if (_parsedGames is null)
         {
             throw new NullReferenceException("Call 'LoadPgn' BEFORE trying to generate any diagrams.");
         }
 
-        _moveData = await ProcessParsedPgn.BuildMoveImageData(new MoveImageData()
-        {
-            ParsedGames =  _parsedGames.ToList(),
-            Filter = filter,
-            IsFromWhitesPerspective = isFromWhitesPerspective
-        }, initialFen);
+        _moveData = await ProcessParsedPgn.BuildMoveImageData(new MoveImageData(){
+                                                              ParsedGames =  _parsedGames.ToList(),
+                                                              Filter = filter,
+                                                              IsFromWhitesPerspective = isFromWhitesPerspective},
+                                                              gameAttributes,
+                                                              initialFen);
     }
 
     [SupportedOSPlatform("windows")]
