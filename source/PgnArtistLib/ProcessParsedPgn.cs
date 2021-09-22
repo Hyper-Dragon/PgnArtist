@@ -1,9 +1,9 @@
-﻿using System.Linq;
-
-namespace PgnArtistLib;
+﻿namespace PgnArtistLib;
 
 internal class ProcessParsedPgn
 {
+    private const string FORCE_HIGHLIGHT_FEN = @"pppppppp/KKKKKKKK/KKKKKKKK/KKKKKKKK/kkkkkkkk/kkkkkkkk/kkkkkkkk/PPPPPPPP";
+
     internal static List<Game> GetFilteredGameList(MoveImageData moveImageData)
     {
         List<Game> filteredGames = new();
@@ -14,24 +14,24 @@ internal class ProcessParsedPgn
             bool isIncluded = true;
 
             if (!string.IsNullOrEmpty(moveImageData.Filter.FilterWhite) &&
-                !string.Equals(game.Tags.Get("White"), 
-                               moveImageData.Filter.FilterWhite, 
+                !string.Equals(game.Tags.Get("White"),
+                               moveImageData.Filter.FilterWhite,
                                StringComparison.InvariantCultureIgnoreCase))
             {
                 isIncluded = false;
             }
-            
+
             if (!string.IsNullOrEmpty(moveImageData.Filter.FilterBlack) &&
-                !string.Equals(game.Tags.Get("Black"), 
-                               moveImageData.Filter.FilterBlack, 
+                !string.Equals(game.Tags.Get("Black"),
+                               moveImageData.Filter.FilterBlack,
                                StringComparison.InvariantCultureIgnoreCase))
             {
                 isIncluded = false;
             }
-            
+
             if (!string.IsNullOrEmpty(moveImageData.Filter.FilterECO) &&
-                !string.Equals(game.Tags.Get("ECO"), 
-                               moveImageData.Filter.FilterECO, 
+                !string.Equals(game.Tags.Get("ECO"),
+                               moveImageData.Filter.FilterECO,
                                StringComparison.InvariantCultureIgnoreCase))
             {
                 isIncluded = false;
@@ -48,7 +48,7 @@ internal class ProcessParsedPgn
 
             if (isIncluded)
             {
-              filteredGames.Add(game);
+                filteredGames.Add(game);
             }
         }
 
@@ -108,6 +108,7 @@ internal class ProcessParsedPgn
         IBoardRenderer boardRenderer = new ShadowBoardRenderer(logger: null);
         SortedList<string, List<RenderableGameMove>> renderableGameList = new();
         SortedList<string, string> annotations = new();
+        SortedList<string, int> fenMatcher = new();
 
         int maxMoves = 0;
 
@@ -119,7 +120,7 @@ internal class ProcessParsedPgn
         {
             (List<RenderableGameMove> renderableMoves, string lastMoveKey) = await ProcessGame(initialFen, game);
 
-            string stripeTxt = string.Concat(gameAttributes.Select(attrib => $"[{((game.Tags.ContainsKey(attrib))?game.Tags[attrib]:"??")}] "));
+            string stripeTxt = string.Concat(gameAttributes.Select(attrib => $"[{((game.Tags.ContainsKey(attrib)) ? game.Tags[attrib] : "??")}] "));
 
             if (!renderableGameList.ContainsKey(lastMoveKey))
             {
@@ -168,6 +169,19 @@ internal class ProcessParsedPgn
         });
 
 
+        //Look for matching FENs on visible boards
+        for (int loopX = 0; loopX < displayGrid.GetLength(0); loopX++)
+        {
+            for (int loopY = 0; loopY < displayGrid.GetLength(1); loopY++)
+            {
+                if (!displayGrid[loopX, loopY].IsHidden)
+                    if (fenMatcher.ContainsKey(displayGrid[loopX, loopY].BoardFen))
+                        fenMatcher[displayGrid[loopX, loopY].BoardFen] += 1;
+                    else
+                        fenMatcher.Add(displayGrid[loopX, loopY].BoardFen, 1);
+            }
+        }
+
         // Get the board graphics
         int[] gridStartY = new int[displayGrid.GetLength(0)];
         int[] gridEndY = new int[displayGrid.GetLength(0)];
@@ -185,22 +199,37 @@ internal class ProcessParsedPgn
                     gridStartY[loopX] = loopY;
                 }
 
-                gridEndY[loopX] = loopY;   
-                byte[] boardImgBytes = await boardRenderer.GetPngImageDiffFromFenAsync(displayGrid[loopX, loopY].BoardFen,
-                                                                                       displayGrid[loopX, loopY].LastBoardFen,
-                                                                                       DiagramRenderer.SQUARE_SIZE,
-                                                                                       moveImageData.IsFromWhitesPerspective);
+                gridEndY[loopX] = loopY;
+
+                byte[] boardImgBytes = Array.Empty<byte>();
+                if (fenMatcher[displayGrid[loopX, loopY].BoardFen] > 1)
+                {
+                    boardImgBytes = await boardRenderer.GetPngImageDiffFromFenAsync(displayGrid[loopX, loopY].BoardFen,
+                                                                                    FORCE_HIGHLIGHT_FEN,
+                                                                                    DiagramRenderer.SQUARE_SIZE,
+                                                                                    moveImageData.IsFromWhitesPerspective);
+                }
+                else
+                {
+                    boardImgBytes = await boardRenderer.GetPngImageDiffFromFenAsync(displayGrid[loopX, loopY].BoardFen,
+                                                                                    displayGrid[loopX, loopY].LastBoardFen,
+                                                                                    DiagramRenderer.SQUARE_SIZE,
+                                                                                    moveImageData.IsFromWhitesPerspective);
+                }
 
                 using MemoryStream memStreamBoard = new(boardImgBytes);
                 displayGrid[loopX, loopY].BoardImage = (Bitmap)Bitmap.FromStream(memStreamBoard);
             }
         }
 
-        return new RenderableGameCollection() { Annotations= annotations.Select(x => x.Value).ToArray<string>(), 
-                                                GridStartY = gridStartY,
-                                                GridEndY = gridEndY,
-                                                DisplayGrid = displayGrid, 
-                                                MaxWidth = maxMoves };
+        return new RenderableGameCollection()
+        {
+            Annotations = annotations.Select(x => x.Value).ToArray<string>(),
+            GridStartY = gridStartY,
+            GridEndY = gridEndY,
+            DisplayGrid = displayGrid,
+            MaxWidth = maxMoves
+        };
     }
 }
 
