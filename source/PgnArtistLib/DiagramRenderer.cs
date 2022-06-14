@@ -118,7 +118,7 @@ internal class DiagramRenderer
                                                 headFont,
                                                 textBrush ?? Brushes.White,
                                                 (SpacerSizeX) + ((loopX * BlockSizeX) + (SpacerSizeX / 2) + (SQUARE_SIZE / 2)) - (BoxWidth / 2) + 1,
-                                                (((loopY - 1) * BlockSizeY) + (SpacerSizeY / 2) + (SQUARE_SIZE) + (SpacerSizeY / 2)) - (BoxHeight / 2) + 1);
+                                                (((loopY - 1) * BlockSizeY) + (SpacerSizeY / 2) + (SQUARE_SIZE) + (SpacerSizeY / 2)) - (BoxHeight / 2) );
                         }
                     }
                 }
