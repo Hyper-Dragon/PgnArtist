@@ -30,8 +30,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\..\ChessLib\src\ChessLib.Core\ChessLib.Core.csproj" />
-    <ProjectReference Include="..\..\..\ChessLib\src\ChessLib.Parse\ChessLib.Parse.csproj" />
+    <ProjectReference Include="..\..\..\..\HyperDragon-Clones\ChessLib\src\ChessLib.Core\ChessLib.Core.csproj" />
+    <ProjectReference Include="..\..\..\..\HyperDragon-Clones\ChessLib\src\ChessLib.Parse\ChessLib.Parse.csproj" />
     <ProjectReference Include="..\DynamicBoard\DynamicBoard.csproj" />
   </ItemGroup>
 
